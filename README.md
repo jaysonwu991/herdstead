@@ -44,9 +44,22 @@ terminal.
 
 ## Install
 
-Prebuilt binaries for macOS (arm64 and x64) and Linux (x64 and arm64) are
-attached to every [release](https://github.com/jaysonwu991/herdstead/releases),
-each with a `.sha256` beside it:
+```bash
+curl -fsSL https://raw.githubusercontent.com/jaysonwu991/herdstead/main/install.sh | sh
+```
+
+The script asks `uname` what this machine is, downloads the matching archive,
+checks it against the `.sha256` the release publishes beside it, and installs
+`herdstead` into `~/.local/bin` — no `sudo`, and it names the folder if that is
+not on your `PATH`. macOS (arm64 and x64) and Linux (x64 and arm64) are the
+platforms it knows; a musl system (Alpine) is refused rather than handed a
+glibc binary. `HERDSTEAD_INSTALL_DIR=/usr/local/bin` puts it elsewhere,
+`HERDSTEAD_VERSION=v0.1.1` pins a release instead of taking the latest, and
+`sh install.sh --help` lists the rest.
+
+To fetch an archive by hand instead — every
+[release](https://github.com/jaysonwu991/herdstead/releases) carries one per
+platform, each with a `.sha256` beside it:
 
 ```bash
 asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64
@@ -384,6 +397,7 @@ Crates:
 ```bash
 cargo test --workspace
 cargo clippy --workspace --all-targets
+sh scripts/test-install.sh
 ```
 
 - unit tests for layout geometry, panes, themes, mention parsing, Markdown,
@@ -395,6 +409,9 @@ cargo clippy --workspace --all-targets
 - `tests/client.rs` drives the real TUI in a PTY: the drawn chrome, prefix
   splits, the composer, `@path` completion, Markdown preview, viewer panes,
   detach and reattach, resizing, and the non-TTY guard
+- `scripts/test-install.sh` runs `install.sh` against fixture archives with no
+  network: platform detection, a pinned release, a mismatched checksum, a
+  missing archive and an unsupported machine
 
 ## Limitations
 

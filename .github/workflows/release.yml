@@ -153,3 +153,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           find assets -type f -exec gh release upload "${GITHUB_REF_NAME}" --repo "${{ github.repository }}" --clobber {} \;
+      # The installer is the path the docs point at, so a release that the
+      # installer cannot install is not shipped: download the archive back from
+      # the release and check the binary it produces names this tag.
+      - uses: actions/checkout@v4
+      - name: Install from the published release
+        env:
+          HERDSTEAD_REPO: ${{ github.repository }}
+          HERDSTEAD_VERSION: ${{ github.ref_name }}
+          HERDSTEAD_INSTALL_DIR: ${{ runner.temp }}/bin
+        run: |
+          set -euo pipefail
+          # A freshly uploaded asset can take a moment to reach the CDN.
+          for attempt in 1 2 3 4 5; do
+            if sh install.sh; then break; fi
+            if [ "${attempt}" = 5 ]; then exit 1; fi
+            sleep 10
+          done
+          installed="$("${RUNNER_TEMP}/bin/herdstead" --version)"
+          test "${installed}" = "herdstead ${GITHUB_REF_NAME#v}"
+          printf 'installed %s from the release\n' "${installed}"

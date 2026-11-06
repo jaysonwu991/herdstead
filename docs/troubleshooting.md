@@ -13,6 +13,47 @@ The session log is at `~/.local/state/herdstead/logs/<session>.log`. Daemon
 startup errors and configuration warnings end up there; a client prints its
 warnings to stderr before the interface takes over.
 
+## The install script failed
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jaysonwu991/herdstead/main/install.sh | sh
+```
+
+Each message names the step that broke, and the download error prints the URL
+it tried. The usual ones:
+
+- **`could not download …`** — that release published no archive for your
+  platform. `releases/latest/download/herdstead-<platform>.tar.gz` is a permanent
+  URL per platform, so this means the newest release is incomplete, or your
+  platform is not one of the four: `HERDSTEAD_VERSION=v0.1.1` pins an older
+  release that has it.
+- **`unsupported architecture` / `unsupported operating system`** — the script
+  knows macOS arm64 and x64 and Linux x64 and arm64. Anything else builds from
+  source: `cargo install --git https://github.com/jaysonwu991/herdstead.git herdstead`.
+- **`this is a musl system`** — the release binaries link glibc, so Alpine and
+  other musl distributions need their own build (the same `cargo install`).
+- **`checksum verification failed`** — the archive and the `.sha256` beside it
+  disagree, usually a truncated download. Nothing was installed; run it again.
+- **`cannot write to …`** — the folder is not yours to write. Set
+  `HERDSTEAD_INSTALL_DIR=$HOME/.local/bin`.
+- **`is not on your PATH`** — the binary is installed and the script still
+  succeeded; add the line it printed to your shell's startup file.
+
+## An upgrade did not take effect
+
+A session daemon is a copy of the binary installed when that session started, so
+replacing the file on disk leaves it running the old build, and attaching to it
+reuses it:
+
+```bash
+herdstead --version          # the client you run
+herdstead ls                 # sessions, each with its own daemon
+herdstead kill <name>        # stops the daemon, keeps the layout
+```
+
+Attaching again starts a new daemon from the new binary and restores the panes
+from the saved layout.
+
 ## "herdstead needs an interactive terminal to attach"
 
 herdstead refuses to start a session when stdin or stdout is not a terminal —

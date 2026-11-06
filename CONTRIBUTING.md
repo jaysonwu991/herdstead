@@ -44,6 +44,7 @@ cargo run -- cat README.md     # the CLI, no TUI needed
 | `cargo run -- ls` | inspect live sessions while developing |
 | `cargo run -- kill <name>` | clean up a session a test or a run left behind |
 | `scripts/set-version.sh v1.2.3` | stamp the workspace version from a tag, as release CI does |
+| `scripts/test-install.sh` | run `install.sh` against fixtures, with no network |
 
 The integration tests start their own daemons in a temporary state folder and
 clean up after themselves, so they do not touch your real session.
@@ -60,6 +61,7 @@ clean up after themselves, so they do not touch your real session.
 | `crates/app/tests` | the daemon and PTY end-to-end tests |
 | `docs/` | user documentation |
 | `assets/` | the mark and lockups |
+| `install.sh`, `scripts/` | the curl-to-sh installer and the helpers CI and releases call |
 
 `core` and `render` do not depend on a terminal library. Keep it that way: a
 renderer takes text and a theme and returns styled rows, so the TUI and the CLI
@@ -125,8 +127,8 @@ requests and their labels. To cut a release, publish the draft: that creates the
 `v*` tag, and `release.yml` answers the tag — it re-checks the tree, stamps the
 workspace version from the tag (`scripts/set-version.sh`), builds `herdstead` on
 macOS (arm64, x64) and Linux (x64, arm64), and attaches
-`herdstead-<platform>.tar.gz` plus a `.sha256` to the release. There is no
-changelog file to update by hand.
+`herdstead-<platform>.tar.gz` plus a `.sha256` to the release — the archives that
+`install.sh` downloads. There is no changelog file to update by hand.
 
 ## License
 

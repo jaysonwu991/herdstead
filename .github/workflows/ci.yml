@@ -44,3 +44,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --locked
       - run: cargo build --release --locked
+      # The installer is the first thing a new user runs; its failure paths are
+      # checked against fixtures, so this needs no network or release.
+      - run: sh scripts/test-install.sh
