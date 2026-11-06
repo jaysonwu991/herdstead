@@ -1,0 +1,40 @@
+name: Release Drafter
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update_release_draft:
+    # Fork PRs only get a read-only token, so skip the job entirely rather than
+    # let the drafter or autolabeler fail on a fork event.
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      # The draft only changes when a pull request merges into main.
+      - name: Draft the next release
+        if: github.event_name == 'push'
+        uses: release-drafter/release-drafter@v7
+        with:
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # v7 moved the autolabeler into its own action; it reads the
+      # `autolabeler` section of release-drafter.yml and applies the type
+      # labels the changelog categories match on.
+      - name: Apply type labels
+        if: github.event_name == 'pull_request'
+        uses: release-drafter/release-drafter/autolabeler@v7
+        with:
+          config-name: release-drafter.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

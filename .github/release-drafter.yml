@@ -1,0 +1,170 @@
+name-template: 'herdstead v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+# One component, one drafter: every `v*` tag is a herdstead release.
+tag-prefix: 'v'
+change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
+change-title-escapes: '\<*_&'
+category-template: '### $TITLE'
+sort-by: merged_at
+sort-direction: descending
+
+# Drop a `feat(scope): ` prefix so the notes read as plain English.
+replacers:
+  - search: '/^(feat|fix|perf|refactor|docs|test|ci|build|chore)(\(.+?\))?!?:\s*/i'
+    replace: ''
+
+categories:
+  # Administrative labels that should never reach the changelog.
+  - type: 'pre-exclude'
+    when:
+      labels:
+        - 'skip-changelog'
+        - 'duplicate'
+        - 'invalid'
+        - 'question'
+        - 'wontfix'
+
+  - title: '⚠️ Breaking Changes'
+    semver-increment: 'major'
+    collapse-after: 3
+    when:
+      - conventional:
+          breaking: true
+      - label: 'breaking'
+
+  - title: '🚀 Features'
+    semver-increment: 'minor'
+    when:
+      - conventional:
+          type: 'feat'
+      - labels:
+          - 'enhancement'
+          - 'feat'
+          - 'feature'
+
+  - title: '🐛 Bug Fixes'
+    when:
+      - conventional:
+          type: 'fix'
+      - labels:
+          - 'bug'
+          - 'fix'
+          - 'bugfix'
+
+  - title: '⚡ Performance'
+    when:
+      - conventional:
+          type: 'perf'
+      - label: 'performance'
+
+  - title: '📚 Documentation'
+    when:
+      - conventional:
+          type: 'docs'
+      - labels:
+          - 'documentation'
+          - 'docs'
+
+  - title: '♻️ Refactoring'
+    when:
+      - conventional:
+          type: 'refactor'
+      - label: 'refactor'
+
+  - title: '🧪 Tests'
+    collapse-after: 5
+    when:
+      - conventional:
+          type: 'test'
+      - label: 'test'
+
+  - title: '🏗️ Build & CI'
+    collapse-after: 5
+    when:
+      - conventional:
+          types:
+            - 'ci'
+            - 'build'
+      - label: 'ci'
+
+  - title: '📦 Dependencies'
+    collapse-after: 5
+    when:
+      labels:
+        - 'dependencies'
+        - 'deps'
+
+  - title: '🧰 Maintenance'
+    collapse-after: 5
+    when:
+      - conventional:
+          type: 'chore'
+      - label: 'chore'
+
+autolabeler:
+  - label: 'breaking'
+    title:
+      - '/!:/'
+      - '/BREAKING[ -]CHANGE/i'
+  - label: 'enhancement'
+    title:
+      - '/^feat(\(.+?\))?!?:/i'
+    branch:
+      - '/^feat(ure)?[/-]/'
+  - label: 'bug'
+    title:
+      - '/^fix(\(.+?\))?!?:/i'
+    branch:
+      - '/^(fix|hotfix|bug)[/-]/'
+  - label: 'performance'
+    title:
+      - '/^perf(\(.+?\))?!?:/i'
+    branch:
+      - '/^perf(ormance)?[/-]/'
+  - label: 'documentation'
+    title:
+      - '/^docs(\(.+?\))?!?:/i'
+    branch:
+      - '/^docs?[/-]/'
+  - label: 'refactor'
+    title:
+      - '/^refactor(\(.+?\))?!?:/i'
+  - label: 'test'
+    title:
+      - '/^test(\(.+?\))?!?:/i'
+  - label: 'ci'
+    title:
+      - '/^(ci|build)(\(.+?\))?!?:/i'
+  - label: 'chore'
+    title:
+      - '/^chore(\(.+?\))?!?:/i'
+  - label: 'dependencies'
+    title:
+      - '/^(deps|dependabot):/i'
+    branch:
+      - '/^dependabot[/-]/'
+
+no-changes-template: |
+  _No user-facing changes in this release._
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  ## Install
+
+  Build from source (macOS or Linux, Rust 1.82+):
+
+  ```sh
+  git clone https://github.com/$OWNER/$REPOSITORY
+  cd $REPOSITORY
+  cargo install --path crates/app
+  ```
+
+  Releases are source-only; `cargo test --workspace` is what CI runs on macOS
+  and Linux for every change.
+
+  **Full documentation:** [README](https://github.com/$OWNER/$REPOSITORY#readme) ·
+  [docs](https://github.com/$OWNER/$REPOSITORY/tree/main/docs)

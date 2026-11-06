@@ -1,0 +1,144 @@
+# Themes
+
+A theme is one set of named colours used by everything: the interface, pane
+output defaults, Markdown, syntax highlighting, trees and the CLI's ANSI output.
+Change the theme and the whole surface changes with it.
+
+## Built-in palettes
+
+| name | appearance | syntax theme | notes |
+|---|---|---|---|
+| `midnight` (default) | dark | base16-ocean.dark | ink-blue surfaces, blue-violet accent |
+| `daylight` | light | base16-ocean.light | paper surfaces, GitHub-ish accent |
+| `nord` | dark | Nord | cool blue-grey |
+| `gruvbox` | dark | gruvbox-dark | warm retro |
+| `mono` | dark | ansi | single-hue; token colours are mapped to grey |
+| `solarized` | light | Solarized (light) | classic Solarized light |
+
+Aliases: `dark` and `default` mean `midnight`, `light` means `daylight`,
+`solarized-light` means `solarized`.
+
+Choose one with, in order of precedence:
+
+1. `herdstead --theme nord`
+2. `HERDSTEAD_THEME=nord`
+3. `theme = "nord"` in the config
+4. `ctrl+b t` for the session (live preview; `Enter` applies, `Esc` restores what
+   you had), or `/theme nord` in the composer
+
+An unknown name is reported and `midnight` is used rather than failing.
+
+## Theme files
+
+Drop a JSON file in `~/.config/herdstead/themes/` and it appears in
+`herdstead themes` and the theme menu:
+
+```json
+{
+  "name": "plum",
+  "extends": "nord",
+  "appearance": "dark",
+  "syntax": "Nord",
+  "colors": {
+    "accent": "#ff00aa",
+    "link": "#7de3ff",
+    "selection": "#3b2a4a",
+    "tree_dir": "#ff00aa"
+  }
+}
+```
+
+| key | required | meaning |
+|---|---|---|
+| `name` | yes | the name to select; give it explicitly, or the file inherits its base theme's name and replaces it |
+| `extends` | no | a built-in or theme-file name to start from (default `midnight`) |
+| `appearance` | no | `dark` or `light`; decides the syntax fallback and derived tones |
+| `syntax` | no | the syntax theme to highlight code with |
+| `colors` | no | slot → colour; `#rrggbb`, `#rgb` or a basic colour name |
+
+The file is read by file name (`themes/<name>.json` when selected by name) and
+then by its `name`. An unknown slot or an unparsable colour is a warning, not a
+failure: the rest of the theme still loads.
+
+You can also override slots without a file, applying to whichever theme is
+active:
+
+```toml
+[theme-colors]
+accent = "#8b5cf6"
+link = "#7de3ff"
+```
+
+`herdstead themes` lists what is available; `herdstead config` shows the resolved
+`theme` and `theme-colors`.
+
+## The colour slots
+
+Thirty-five slots, all optional in a theme file because every one has a derived
+default.
+
+### Surfaces and text
+
+| slot | used for |
+|---|---|
+| `bg` | the application background and the terminal's default background |
+| `panel` | the tab strip, sidebar, status bar and composer |
+| `fg` | default text |
+| `muted` | secondary text, unfocused pane titles, list counts |
+| `faint` | hints, section headers, dim details |
+
+### Chrome
+
+| slot | used for |
+|---|---|
+| `accent` | focus, the active pane's border, working status, bullets |
+| `accent_alt` | transient status messages and hover |
+| `border` | pane borders, dividers, rules, sidebar divider |
+| `border_focus` | the focused pane, completion and overlay borders |
+| `selection` | the selected row in the completion popup and the theme menu |
+| `tab_active_bg`, `tab_active_fg` | the active tab |
+| `tab_fg` | inactive tabs |
+| `chip_bg`, `chip_fg` | the workspace chip at the left of the tab strip |
+
+### States
+
+| slot | used for |
+|---|---|
+| `success` | completed tasks, executable files, "done" |
+| `warning` | blocked panes, scroll indicators |
+| `error` | exited panes, missing `@path` references, failures |
+| `info` | agent glyphs and agent names |
+
+### Content
+
+| slot | used for |
+|---|---|
+| `heading` | Markdown headings and their bars |
+| `link` | URLs |
+| `mention` | `@path` references that exist |
+| `path` | file paths in output |
+| `inline_code_fg`, `code_bg` | inline code and fenced blocks |
+| `code_border` | the rail beside a code block or file |
+| `quote` | block quotes and their bar |
+| `bullet`, `number` | unordered and ordered list markers |
+| `table_border` | table rules |
+| `gutter` | line numbers |
+| `tree_dir`, `tree_file`, `tree_exec`, `tree_link` | tree entries by kind |
+
+### The syntax theme
+
+Code colours come from a [syntect](https://github.com/trishume/syntect) theme,
+not from the slots. The bundled set includes `base16-ocean.dark`,
+`base16-ocean.light`, `Nord`, `gruvbox-dark`, `gruvbox-light`, `Solarized
+(dark)`, `Solarized (light)`, `GitHub`, `Dracula`, `Monokai Extended`,
+`OneHalfDark`, `Catppuccin Mocha`, `TwoDark`, `zenburn` and more. Set `syntax` to
+one of those names; a theme without one falls back to `base16-ocean.dark` for
+dark appearance and `base16-ocean.light` for light.
+
+`mono` is special: it keeps the syntax theme's structure but maps each token
+colour to grey by luminance, so structure survives without hue.
+
+## Reloading
+
+`prefix+r` re-reads the config and the selected theme (including `theme-colors`)
+and re-renders viewers. Choosing a theme in the menu re-renders immediately.

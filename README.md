@@ -8,6 +8,17 @@ One Rust binary. Panes, tabs and workspaces that survive a detach, plus a
 terminal that recognises links, themes, Markdown, `@path` references,
 syntax-highlighted files and folder trees.
 
+[![CI](https://github.com/jaysonwu991/herdstead/actions/workflows/ci.yml/badge.svg)](https://github.com/jaysonwu991/herdstead/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache--2.0-666666.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.82%2B-666666.svg)](Cargo.toml)
+
+[**Documentation**](docs/README.md) · [getting started](docs/getting-started.md) ·
+[sessions](docs/sessions.md) · [composer](docs/composer.md) ·
+[viewers](docs/viewers.md) · [themes](docs/themes.md) ·
+[configuration](docs/configuration.md) · [keys](docs/keys.md) ·
+[architecture](docs/architecture.md) · [troubleshooting](docs/troubleshooting.md)
+· [brand](docs/brand.md)
+
 ---
 
 ## Why
@@ -73,7 +84,7 @@ Then:
  │ ▦ herdstead  1 shell ●  2 tests ○                                         │
  ├──────────────┬────────────────────────────────────────────────────────────┤
  │ herdstead   │ ┌ ✳ claude ● ────────────────────────────────────────────┐  │
- │              │ │ ✓ cargo test — 173 passed                              │  │
+ │              │ │ ✓ cargo test — all green                               │  │
  │ WORKSPACES   │ │ see https://herdr.dev/docs and src/main.rs             │  │
  │  ● herdstead│ │ @src/render/markdown.rs                                │  │
  │  ○ oxide     │ └────────────────────────────────────────────────────────┘  │
@@ -107,6 +118,8 @@ looks like a path never turns into one.
   any other OSC 8 terminal.
 - **Hover feedback:** the status bar names the target under the pointer.
 
+More: [panes and output](docs/terminal.md), [viewers](docs/viewers.md).
+
 ### 2. Themes
 
 Six built-in palettes, all truecolor:
@@ -138,6 +151,8 @@ Six built-in palettes, all truecolor:
 - The same palette drives the interface, Markdown, syntax highlighting and ANSI
   output, so `herdstead cat` matches what the pane shows.
 
+More: [themes](docs/themes.md).
+
 ### 3. Markdown
 
 - **Live preview in the composer.** `ctrl+b m` opens the composer with the
@@ -153,12 +168,14 @@ Six built-in palettes, all truecolor:
 cat README.md | herdstead md --stdin
 ```
 
+More: [the composer](docs/composer.md), [viewers](docs/viewers.md).
+
 ### 4. `@path` references
 
 The composer completes file and folder references as you type:
 
-- type `@` and the current pane's folder is scanned (folders first, build output
-  skipped); `↑`/`↓` move, `Tab`/`Enter` accepts
+- type `@` and the current pane's folder is scanned (build output skipped);
+  `↑`/`↓` move, `Tab`/`Enter` accepts
 - folders complete with a trailing `/`, paths with spaces are quoted
   automatically
 - `@src/lib.rs#L12-L14` keeps the location suffix out of the path
@@ -168,6 +185,8 @@ The composer completes file and folder references as you type:
 
 `herdstead cat` and the viewers treat the same syntax as a link, so a reference
 in the transcript is clickable too.
+
+More: [the composer](docs/composer.md).
 
 ### 5. `cat`, highlighted like an editor
 
@@ -184,6 +203,8 @@ herdstead cat Cargo.toml --no-line-numbers
 - OSC 8 links for references in the file
 - `herdstead languages` lists what is supported
 
+More: [viewers](docs/viewers.md).
+
 ### 6. Folder trees
 
 ```bash
@@ -198,6 +219,8 @@ herdstead tree . --all            # include target/, node_modules/, .git/
 - in a session: `/tree src` or `ctrl+b shift+e` opens a tree pane; clicking a
   folder in a pane opens it as a tree. Viewer panes reuse the same renderer, so
   the CLI and the TUI always agree
+
+More: [viewers](docs/viewers.md).
 
 ## Sessions
 
@@ -217,6 +240,8 @@ herdstead kill work --forget  # stop it and delete the layout
 - panes report their folder through OSC 7, which the new-pane and viewer paths
   use as their base
 - a daemon's log is at `$XDG_STATE_HOME/herdstead/logs/<name>.log`
+
+More: [sessions](docs/sessions.md).
 
 ## Keys
 
@@ -283,6 +308,8 @@ link-modifier = "super"      # super | ctrl | alt
 mouse = true
 sidebar = true
 sidebar-width = 28
+# Open the composer with the Markdown preview already on.
+composer-markdown-preview = false
 status-bar = true
 restore = true
 tree-ignores = ["target", "node_modules", ".git", "dist", "build", ".venv"]
@@ -340,7 +367,7 @@ Crates:
 ## Tests
 
 ```bash
-cargo test --workspace     # 173 tests
+cargo test --workspace
 cargo clippy --workspace --all-targets
 ```
 
@@ -351,8 +378,8 @@ cargo clippy --workspace --all-targets
 - `tests/runtime.rs` drives a real daemon: a shell pane, typed keys, splits,
   scrollback, viewer panes, kill, restart and layout restore
 - `tests/client.rs` drives the real TUI in a PTY: the drawn chrome, prefix
-  splits, the composer, `@path` completion, Markdown preview, detach and
-  reattach, and terminal resizing
+  splits, the composer, `@path` completion, Markdown preview, viewer panes,
+  detach and reattach, resizing, and the non-TTY guard
 
 ## Limitations
 
