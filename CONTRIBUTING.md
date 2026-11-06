@@ -43,6 +43,7 @@ cargo run -- cat README.md     # the CLI, no TUI needed
 | `cargo fmt --all` | format |
 | `cargo run -- ls` | inspect live sessions while developing |
 | `cargo run -- kill <name>` | clean up a session a test or a run left behind |
+| `scripts/set-version.sh v1.2.3` | stamp the workspace version from a tag, as release CI does |
 
 The integration tests start their own daemons in a temporary state folder and
 clean up after themselves, so they do not touch your real session.
@@ -118,10 +119,14 @@ tests are what catch a key that never reaches the pane.
 
 ## Releases
 
-Releases are tags. Labels are synced from `.github/labels.yml`; the release
-drafter keeps a draft for the next version, built from merged pull requests and
-their labels. To cut a release, publish the draft (it creates the `v*` tag). There
-is no changelog file to update by hand.
+Releases are tags. Labels are synced from `.github/workflows/labels.yml`; the
+release drafter keeps a draft for the next version, built from merged pull
+requests and their labels. To cut a release, publish the draft: that creates the
+`v*` tag, and `release.yml` answers the tag — it re-checks the tree, stamps the
+workspace version from the tag (`scripts/set-version.sh`), builds `herdstead` on
+macOS (arm64, x64) and Linux (x64, arm64), and attaches
+`herdstead-<platform>.tar.gz` plus a `.sha256` to the release. There is no
+changelog file to update by hand.
 
 ## License
 

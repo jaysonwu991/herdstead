@@ -42,7 +42,21 @@ terminal.
 | `cat` | syntax highlighted like an editor (`herdstead cat`) |
 | folder trees | `herdstead tree`, `/tree`, and tree viewer panes |
 
-## Build
+## Install
+
+Prebuilt binaries for macOS (arm64 and x64) and Linux (x64 and arm64) are
+attached to every [release](https://github.com/jaysonwu991/herdstead/releases),
+each with a `.sha256` beside it:
+
+```bash
+asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64
+base=https://github.com/jaysonwu991/herdstead/releases/latest/download
+curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"
+shasum -a 256 -c "$asset.sha256"        # sha256sum -c on Linux
+tar -xzf "$asset" && sudo mv herdstead /usr/local/bin/
+```
+
+Or build it yourself:
 
 ```bash
 cargo install --git https://github.com/jaysonwu991/herdstead.git herdstead
@@ -57,9 +71,9 @@ cargo build --release          # target/release/herdstead
 # or: cargo install --path crates/app
 ```
 
-Requires a recent Rust toolchain. macOS and Linux (the client and daemon talk
-over a Unix socket). `cargo build --release` takes about 15 seconds and produces
-a 5 MB binary with no runtime dependencies.
+Requires a recent Rust toolchain (1.82 or newer). macOS and Linux (the client
+and daemon talk over a Unix socket). `cargo build --release` takes about 15
+seconds and produces a 5 MB binary with no runtime dependencies.
 
 Attaching needs an interactive terminal. Run from a pipe or a script,
 `herdstead` refuses before it starts a session and points at the
