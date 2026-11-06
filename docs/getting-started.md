@@ -2,19 +2,19 @@
 
 ## Install
 
-From source (macOS or Linux, Rust 1.82 or newer):
+Straight from the repository (macOS or Linux, Rust 1.82 or newer):
+
+```bash
+cargo install --git https://github.com/jaysonwu991/herdstead.git herdstead
+```
+
+That puts `herdstead` in `~/.cargo/bin`. To build locally instead:
 
 ```bash
 git clone https://github.com/jaysonwu991/herdstead.git
 cd herdstead
-cargo build --release
-./target/release/herdstead
-```
-
-To keep it on your `PATH`:
-
-```bash
-cargo install --path crates/app     # → ~/.cargo/bin/herdstead
+cargo build --release          # target/release/herdstead
+# or: cargo install --path crates/app
 ```
 
 `cargo build --release` takes about 15 seconds and produces a 5 MB binary with no

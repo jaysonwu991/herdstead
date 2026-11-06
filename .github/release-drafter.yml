@@ -158,9 +158,7 @@ template: |
   Build from source (macOS or Linux, Rust 1.82+):
 
   ```sh
-  git clone https://github.com/$OWNER/$REPOSITORY
-  cd $REPOSITORY
-  cargo install --path crates/app
+  cargo install --git https://github.com/$OWNER/$REPOSITORY.git herdstead
   ```
 
   Releases are source-only; `cargo test --workspace` is what CI runs on macOS

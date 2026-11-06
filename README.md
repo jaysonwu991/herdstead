@@ -45,20 +45,21 @@ terminal.
 ## Build
 
 ```bash
-git clone <this repo> && cd herdstead
-cargo build --release
-./target/release/herdstead
+cargo install --git https://github.com/jaysonwu991/herdstead.git herdstead
+```
+
+That puts `herdstead` in `~/.cargo/bin`. To hack on it instead:
+
+```bash
+git clone https://github.com/jaysonwu991/herdstead.git
+cd herdstead
+cargo build --release          # target/release/herdstead
+# or: cargo install --path crates/app
 ```
 
 Requires a recent Rust toolchain. macOS and Linux (the client and daemon talk
 over a Unix socket). `cargo build --release` takes about 15 seconds and produces
-a 5 MB binary.
-
-To put it on your `PATH`, install it from the workspace:
-
-```bash
-cargo install --path crates/app     # → ~/.cargo/bin/herdstead
-```
+a 5 MB binary with no runtime dependencies.
 
 Attaching needs an interactive terminal. Run from a pipe or a script,
 `herdstead` refuses before it starts a session and points at the
