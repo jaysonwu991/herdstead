@@ -80,6 +80,8 @@ pub struct App {
     pub theme: Theme,
     pub themes: Vec<Theme>,
     pub theme_index: usize,
+    /// The theme to return to when the theme menu is cancelled.
+    theme_before_menu: Option<Theme>,
     pub config: Config,
     pub keymap: BTreeMap<String, Binding>,
     pub prefix: Binding,
@@ -146,10 +148,14 @@ impl App {
             theme,
             themes,
             theme_index,
+            theme_before_menu: None,
             sidebar: config.sidebar,
             sidebar_width: config.sidebar_width,
+            composer: Composer {
+                preview: config.composer_markdown_preview,
+                ..Composer::default()
+            },
             config,
-            composer: Composer::default(),
             focus: Focus::Pane,
             overlay: None,
             snapshot: None,
@@ -365,6 +371,7 @@ impl App {
             }
             "theme-menu" => {
                 let index = self.theme_index;
+                self.theme_before_menu = Some(self.theme.clone());
                 self.overlay = Some(Overlay::ThemeMenu { index });
                 Vec::new()
             }
@@ -695,6 +702,14 @@ impl App {
             self.close_composer();
             return Vec::new();
         }
+        if !text.starts_with('/') && !self.can_prompt_focused_pane() {
+            // Keep the text: silently dropping a prompt is worse than saying
+            // which pane is in the way.
+            self.set_status(
+                "the focused pane is not a running shell — focus a shell pane, or use /split",
+            );
+            return Vec::new();
+        }
         self.composer.text.clear();
         self.composer.cursor = 0;
         self.composer.completion = None;
@@ -702,6 +717,12 @@ impl App {
             return self.run_command(&text);
         }
         vec![Action::SendText { text, submit: true }]
+    }
+
+    /// A prompt only makes sense for a live shell pane.
+    fn can_prompt_focused_pane(&self) -> bool {
+        self.focused_pane()
+            .is_some_and(|pane| pane.kind == PaneKind::Shell && pane.exit_code.is_none())
     }
 
     /// Slash commands the composer understands.
@@ -846,15 +867,29 @@ impl App {
     fn on_overlay_key(&mut self, overlay: Overlay, key: KeyEvent) -> Vec<Action> {
         match overlay {
             Overlay::ThemeMenu { mut index } => match key.code {
-                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => {
-                    if key.code != KeyCode::Esc {
-                        if let Some(theme) = self.themes.get(index).cloned() {
-                            self.theme = theme;
-                            self.theme_index = index;
-                            self.viewer_cache.clear();
-                            self.set_status(format!("theme: {}", self.theme.name));
-                        }
+                KeyCode::Esc => {
+                    // Cancelling puts back the theme that was active when the
+                    // menu opened, undoing the live preview.
+                    if let Some(previous) = self.theme_before_menu.take() {
+                        self.theme = previous;
+                        self.theme_index = self
+                            .themes
+                            .iter()
+                            .position(|candidate| candidate.name == self.theme.name)
+                            .unwrap_or(self.theme_index);
+                        self.viewer_cache.clear();
                     }
+                    self.overlay = None;
+                    Vec::new()
+                }
+                KeyCode::Enter | KeyCode::Char('q') => {
+                    if let Some(theme) = self.themes.get(index).cloned() {
+                        self.theme = theme;
+                        self.theme_index = index;
+                        self.viewer_cache.clear();
+                        self.set_status(format!("theme: {}", self.theme.name));
+                    }
+                    self.theme_before_menu = None;
                     self.overlay = None;
                     Vec::new()
                 }
@@ -1004,6 +1039,9 @@ impl App {
     }
 
     fn on_mouse(&mut self, mouse: MouseEvent) -> Vec<Action> {
+        if !self.config.mouse {
+            return Vec::new();
+        }
         let Some(snapshot) = self.snapshot.clone() else {
             return Vec::new();
         };
@@ -1656,6 +1694,73 @@ mod tests {
         KeyEvent::new(code, modifiers)
     }
 
+    /// Attaches a snapshot with one focused shell pane, which is what the
+    /// composer needs before it will send anything.
+    fn with_shell(app: &mut App) -> &mut App {
+        with_shell_in(app, "/tmp")
+    }
+
+    fn with_shell_in<'a>(app: &'a mut App, cwd: &str) -> &'a mut App {
+        use herdstead_core::detect::PaneStatus;
+        use herdstead_core::protocol::{PaneFrame, Snapshot, TabView, WorkspaceView};
+        let area = herdstead_core::geom::Rect::new(0, 1, 80, 20);
+        app.handle(AppEvent::Snapshot(Box::new(Snapshot {
+            session: "test".into(),
+            version: "0.1.0".into(),
+            seq: 1,
+            size: herdstead_core::model::Size { rows: 24, cols: 80 },
+            area,
+            workspaces: vec![WorkspaceView {
+                id: herdstead_core::ids::WorkspaceId(1),
+                name: "test".into(),
+                dir: "/tmp".into(),
+                status: PaneStatus::Idle,
+                panes: 1,
+                agent: None,
+                tabs: vec![TabView {
+                    id: herdstead_core::ids::TabId(1),
+                    name: "shell".into(),
+                    status: PaneStatus::Idle,
+                    panes: 1,
+                    agent: None,
+                }],
+                active_tab: 0,
+            }],
+            active_workspace: 0,
+            focused: Some(herdstead_core::ids::PaneId(1)),
+            zoomed: false,
+            panes: vec![PaneFrame {
+                id: herdstead_core::ids::PaneId(1),
+                rect: area,
+                title: "shell".into(),
+                cwd: cwd.to_string(),
+                command: "sh".into(),
+                kind: PaneKind::Shell,
+                viewer: None,
+                agent: None,
+                status: PaneStatus::Idle,
+                bell: false,
+                exit_code: None,
+                scroll: 0,
+                grid: None,
+            }],
+        })));
+        app
+    }
+
+    fn with_viewer(app: &mut App) -> &mut App {
+        with_shell(app);
+        let mut snapshot = app.snapshot().unwrap().clone();
+        let pane = &mut snapshot.panes[0];
+        pane.kind = PaneKind::Viewer;
+        pane.viewer = Some(herdstead_core::model::ViewerSpec {
+            path: "/tmp/README.md".into(),
+            kind: ViewerKind::Markdown,
+        });
+        app.handle(AppEvent::Snapshot(Box::new(snapshot)));
+        app
+    }
+
     #[test]
     fn bindings_match_with_shifted_characters() {
         let binding = parse_binding("prefix+shift+r").unwrap();
@@ -1709,6 +1814,7 @@ mod tests {
         std::fs::create_dir_all(root.join("src")).unwrap();
         std::fs::write(root.join("src/main.rs"), "").unwrap();
         let mut app = app();
+        with_shell_in(&mut app, &root.display().to_string());
         app.completion_root = root.clone();
         app.completion_entries.clear();
         app.open_composer_with("look at @s");
@@ -1729,6 +1835,54 @@ mod tests {
         );
         assert!(app.composer.text.is_empty());
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn the_composer_keeps_text_when_no_shell_has_focus() {
+        let mut app = app();
+        with_viewer(&mut app);
+        app.open_composer_with("explain this");
+        let actions = app.on_key(press(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(actions.is_empty());
+        assert_eq!(
+            app.composer.text, "explain this",
+            "the prompt is kept so it is not lost"
+        );
+        let status = app
+            .status
+            .as_ref()
+            .map(|(message, _)| message.clone())
+            .unwrap_or_default();
+        assert!(status.contains("not a running shell"), "{status}");
+
+        // Slash commands still work from a viewer.
+        app.composer.text.clear();
+        app.composer.cursor = 0;
+        app.open_composer_with("/close");
+        let actions = app.on_key(press(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(actions, vec![Action::ClosePane]);
+    }
+
+    #[test]
+    fn cancelling_the_theme_menu_restores_the_previous_theme() {
+        let mut app = app();
+        let before = app.theme.name.clone();
+        app.on_key(press(KeyCode::Char('b'), KeyModifiers::CONTROL));
+        app.on_key(press(KeyCode::Char('t'), KeyModifiers::NONE));
+        app.on_key(press(KeyCode::Down, KeyModifiers::NONE));
+        assert_ne!(app.theme.name, before, "the menu previews as it moves");
+        app.on_key(press(KeyCode::Esc, KeyModifiers::NONE));
+        assert_eq!(app.theme.name, before, "esc cancels the preview");
+        assert!(app.overlay.is_none());
+
+        // Enter keeps the previewed theme.
+        app.on_key(press(KeyCode::Char('b'), KeyModifiers::CONTROL));
+        app.on_key(press(KeyCode::Char('t'), KeyModifiers::NONE));
+        app.on_key(press(KeyCode::Down, KeyModifiers::NONE));
+        let previewed = app.theme.name.clone();
+        app.on_key(press(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(app.theme.name, previewed);
+        assert!(app.overlay.is_none());
     }
 
     #[test]

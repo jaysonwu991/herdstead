@@ -41,7 +41,8 @@ pub fn run(
 ) -> Result<()> {
     // Take over the terminal first: if there is no usable TTY (a pipe, a
     // script, an unattended shell), fail before a daemon is started.
-    let mut terminal = setup_terminal()?;
+    let mouse = config.mouse;
+    let mut terminal = setup_terminal(mouse)?;
     let result = attach_and_run(&mut terminal, session, cwd, paths, config, theme, warnings);
     restore_terminal(&mut terminal);
     result
@@ -94,16 +95,21 @@ fn attach_and_run(
     event_loop(terminal, &mut app, &mut write, rx)
 }
 
-fn setup_terminal() -> Result<Tui> {
+fn setup_terminal(mouse: bool) -> Result<Tui> {
     terminal::enable_raw_mode().context("enabling raw mode")?;
     let mut stdout = std::io::stdout();
-    execute!(
-        stdout,
-        terminal::EnterAlternateScreen,
-        EnableMouseCapture,
-        EnableBracketedPaste
-    )
-    .context("entering the alternate screen")?;
+    if mouse {
+        execute!(
+            stdout,
+            terminal::EnterAlternateScreen,
+            EnableMouseCapture,
+            EnableBracketedPaste
+        )
+        .context("entering the alternate screen")?;
+    } else {
+        execute!(stdout, terminal::EnterAlternateScreen, EnableBracketedPaste)
+            .context("entering the alternate screen")?;
+    }
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).context("starting the terminal")?;
     terminal.clear().ok();

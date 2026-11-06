@@ -172,16 +172,20 @@ fn main() -> Result<()> {
 pub fn load_theme(name: &Option<String>, config: &Config, paths: &Paths) -> Theme {
     let requested = name.clone().unwrap_or_else(|| config.theme.clone());
     let mut theme = Theme::load(&requested, &paths.themes_dir());
-    if !requested.eq_ignore_ascii_case(&theme.name)
-        && !paths
-            .themes_dir()
-            .join(format!("{requested}.json"))
-            .exists()
-    {
-        eprintln!(
-            "herdstead: unknown theme `{requested}`, using `{}` (try `herdstead themes`)",
-            theme.name
-        );
+    if !requested.eq_ignore_ascii_case(&theme.name) {
+        // Say why the requested theme did not win: a missing name and a broken
+        // file produce the same fallback otherwise.
+        let file = paths.themes_dir().join(format!("{requested}.json"));
+        if file.exists() {
+            if let Err(err) = Theme::from_file(&file) {
+                eprintln!("herdstead: {err}");
+            }
+        } else {
+            eprintln!(
+                "herdstead: unknown theme `{requested}`, using `{}` (try `herdstead themes`)",
+                theme.name
+            );
+        }
     }
     if let Err(err) = theme.apply_overrides(&config.theme_colors) {
         eprintln!("herdstead: theme-colors: {err}");

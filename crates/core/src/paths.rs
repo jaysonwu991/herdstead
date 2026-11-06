@@ -233,8 +233,8 @@ link-modifier = "super"
 mouse = true
 sidebar = true
 sidebar-width = 28
-composer = true
-composer-markdown-preview = true
+# Open the composer with the Markdown preview already on (ctrl+p toggles it).
+composer-markdown-preview = false
 status-bar = true
 
 # Detached sessions are restored (layout, folders) when you reattach.

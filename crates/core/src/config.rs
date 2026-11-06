@@ -38,7 +38,7 @@ pub struct Config {
     pub mouse: bool,
     pub sidebar: bool,
     pub sidebar_width: u16,
-    pub composer: bool,
+    /// Open the composer with the Markdown preview already on.
     pub composer_markdown_preview: bool,
     pub status_bar: bool,
     pub restore: bool,
@@ -62,8 +62,7 @@ impl Default for Config {
             mouse: true,
             sidebar: true,
             sidebar_width: 28,
-            composer: true,
-            composer_markdown_preview: true,
+            composer_markdown_preview: false,
             status_bar: true,
             restore: true,
             tree_ignores: vec![

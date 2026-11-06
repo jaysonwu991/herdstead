@@ -157,10 +157,7 @@ fn draw_tab_bar(frame: &mut Frame, app: &App, chrome: &ChromeRects, snapshot: Op
     if let Some(workspace) = workspace {
         line.push(herdstead_render::Span::new(
             ui_layout::chip_label(&workspace.name),
-            RStyle::plain()
-                .fg(theme.tab_active_fg)
-                .bg(theme.tab_active_bg)
-                .bold(),
+            RStyle::plain().fg(theme.chip_fg).bg(theme.chip_bg).bold(),
         ));
         for (index, tab) in workspace.tabs.iter().enumerate() {
             let active = index == workspace.active_tab;
@@ -608,7 +605,7 @@ fn draw_completion(frame: &mut Frame, app: &App, input: Rect, completion: &super
     for (index, item) in completion.items.iter().take(rows).enumerate() {
         let selected = index == completion.index;
         let style = if selected {
-            RStyle::plain().fg(theme.bg).bg(theme.accent).bold()
+            RStyle::plain().fg(theme.fg).bg(theme.selection).bold()
         } else {
             RStyle::plain().fg(theme.fg)
         };
@@ -712,14 +709,14 @@ fn draw_overlay(frame: &mut Frame, app: &App, overlay: &Overlay) {
                 }
                 let selected = row == *index;
                 let style = if selected {
-                    RStyle::plain().fg(theme.bg).bg(theme.bg).reversed().bold()
+                    RStyle::plain().fg(theme.fg).bg(theme.selection).bold()
                 } else {
                     RStyle::plain().fg(theme.fg)
                 };
                 if selected {
                     for column in 1..area.width.saturating_sub(1) {
                         if let Some(cell) = frame.buffer_mut().cell_mut((area.x + column, y)) {
-                            cell.set_style(rat_style(RStyle::plain().bg(theme.border)));
+                            cell.set_style(rat_style(RStyle::plain().bg(theme.selection)));
                         }
                     }
                 }

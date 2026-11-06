@@ -10,7 +10,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender, TrySendError};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
@@ -121,7 +121,7 @@ pub fn run(session: String) -> Result<()> {
 enum Msg {
     Connected {
         id: u64,
-        events: Sender<Vec<u8>>,
+        events: SyncSender<Vec<u8>>,
     },
     Request {
         id: u64,
@@ -148,7 +148,10 @@ enum Msg {
 }
 
 struct ClientHandle {
-    events: Sender<Vec<u8>>,
+    /// Bounded: a client that cannot keep up drops frames rather than growing
+    /// the daemon's memory. Every frame is a whole snapshot, so the next one is
+    /// always a complete picture.
+    events: SyncSender<Vec<u8>>,
     size: Size,
     attached: bool,
 }
@@ -157,7 +160,7 @@ fn spawn_client(stream: UnixStream, id: u64, tx: Sender<Msg>) {
     let Ok(read_stream) = stream.try_clone() else {
         return;
     };
-    let (events_tx, events_rx) = mpsc::channel::<Vec<u8>>();
+    let (events_tx, events_rx) = mpsc::sync_channel::<Vec<u8>>(2);
     // Writer: one thread per client so a slow reader cannot stall the runtime.
     std::thread::spawn(move || {
         let mut stream = stream;
@@ -532,7 +535,7 @@ impl Runtime {
             if let Ok(bytes) = encode_line(&Event::Error {
                 message: message.to_string(),
             }) {
-                let _ = client.events.send(bytes);
+                let _ = client.events.try_send(bytes);
             }
         }
     }
@@ -699,7 +702,7 @@ impl Runtime {
                     if let Ok(bytes) = encode_line(&Event::Detached {
                         reason: "detached".to_string(),
                     }) {
-                        let _ = client.events.send(bytes);
+                        let _ = client.events.try_send(bytes);
                     }
                 }
             }
@@ -992,7 +995,7 @@ impl Runtime {
         if let Ok(bytes) = encode_line(&Event::Snapshot {
             snapshot: Box::new(self.snapshot()),
         }) {
-            let _ = client.events.send(bytes);
+            let _ = client.events.try_send(bytes);
         }
     }
 
@@ -1003,8 +1006,14 @@ impl Runtime {
         }) else {
             return;
         };
-        self.clients
-            .retain(|_, client| client.events.send(bytes.clone()).is_ok());
+        self.clients.retain(|_, client| {
+            match client.events.try_send(bytes.clone()) {
+                Ok(()) => true,
+                // Behind, but alive: keep it and let the next snapshot catch up.
+                Err(TrySendError::Full(_)) => true,
+                Err(TrySendError::Disconnected(_)) => false,
+            }
+        });
     }
 
     fn save(&mut self) {
@@ -1028,7 +1037,7 @@ impl Runtime {
             reason: "the session stopped".to_string(),
         }) {
             for client in self.clients.values() {
-                let _ = client.events.send(bytes.clone());
+                let _ = client.events.try_send(bytes.clone());
             }
         }
         for pty in self.panes.values_mut() {

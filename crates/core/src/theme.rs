@@ -178,7 +178,6 @@ pub struct Theme {
     pub border: Rgb,
     pub border_focus: Rgb,
     pub selection: Rgb,
-    pub instruction: Rgb,
 
     // States.
     pub success: Rgb,
@@ -212,7 +211,6 @@ pub struct Theme {
     pub tab_fg: Rgb,
     pub chip_bg: Rgb,
     pub chip_fg: Rgb,
-    pub spinner: Rgb,
 }
 
 /// The nine colours each built-in theme starts from.
@@ -385,7 +383,6 @@ impl Theme {
             border: shade(0.14),
             border_focus: r.accent,
             selection: r.bg.mix(r.accent, if dark { 0.30 } else { 0.22 }),
-            instruction: r.accent_alt.mix(r.fg, 0.25),
             success: r.success,
             warning: r.warning,
             error: r.error,
@@ -411,7 +408,6 @@ impl Theme {
             tab_fg: recessive(0.35),
             chip_bg: shade(0.10),
             chip_fg: r.fg.mix(r.bg, 0.15),
-            spinner: r.accent,
         }
     }
 
@@ -470,7 +466,6 @@ impl Theme {
         border,
         border_focus,
         selection,
-        instruction,
         success,
         warning,
         error,
@@ -496,7 +491,6 @@ impl Theme {
         tab_fg,
         chip_bg,
         chip_fg,
-        spinner,
     );
 
     /// A JSON theme file: `{ "extends": "midnight", "colors": { ... } }`.
