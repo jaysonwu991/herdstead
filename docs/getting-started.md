@@ -2,9 +2,24 @@
 
 ## Install
 
-Prebuilt binaries are attached to every
-[release](https://github.com/jaysonwu991/herdstead/releases): pick the archive
-for your platform and check it against the `.sha256` beside it.
+```bash
+curl -fsSL https://raw.githubusercontent.com/jaysonwu991/herdstead/main/install.sh | sh
+```
+
+That script is worth reading before you trust it
+([source](https://github.com/jaysonwu991/herdstead/blob/main/install.sh)): it
+asks `uname` for the platform, downloads the archive from the release, checks it
+against the `.sha256` beside it, and puts `herdstead` in `~/.local/bin`. If that
+folder is not on your `PATH` it prints the line to add. macOS (arm64 and x64)
+and Linux (x64 and arm64) are what it covers, and each of those has an archive
+attached to every [release](https://github.com/jaysonwu991/herdstead/releases).
+
+- `HERDSTEAD_INSTALL_DIR=/usr/local/bin` installs somewhere else.
+- `HERDSTEAD_VERSION=v0.1.1` pins a release instead of taking the latest.
+- `sh install.sh --help` prints the same overrides.
+
+Fetched by hand instead? Pick the archive for your platform, check it against
+the `.sha256` beside it, and move the binary where you want it:
 
 ```bash
 asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64

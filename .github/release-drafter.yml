@@ -155,8 +155,14 @@ template: |
 
   ## Install
 
-  Prebuilt binaries for macOS (arm64 and x64) and Linux (x64 and arm64) are
-  attached below, each with a `.sha256`:
+  ```sh
+  curl -fsSL https://raw.githubusercontent.com/$OWNER/$REPOSITORY/main/install.sh | sh
+  ```
+
+  The script picks the archive for your machine and checks it against the
+  `.sha256` beside it (macOS arm64 and x64, Linux x64 and arm64), installing
+  into `~/.local/bin`. Prebuilt binaries are attached below if you would rather
+  fetch one yourself:
 
   ```sh
   asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64

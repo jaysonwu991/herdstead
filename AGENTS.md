@@ -52,6 +52,12 @@ themselves, but they do spawn processes: a failure leaves a session behind, whic
 keys, the composer, layout, viewers or the socket, the end-to-end tests are the
 ones that prove it — unit tests are not enough.
 
+`install.sh` has its own check, offline against fixture archives:
+
+```sh
+sh scripts/test-install.sh
+```
+
 ## Conventions
 
 - British English in user-facing text (`colour`, `recognise`).
@@ -62,8 +68,9 @@ ones that prove it — unit tests are not enough.
 - A new action is not done until the keymap defaults, the server handler, the
   client dispatch and `docs/keys.md` agree.
 - Keep the docs' stated test commands and file paths true.
-- A release is not done until the drafter's install block, `release.yml`, the
-  README and `docs/getting-started.md` name the same platforms.
+- A release is not done until the drafter's install block, `release.yml`,
+  `install.sh`, the README and `docs/getting-started.md` name the same platforms
+  and the same install path.
 - Do not commit `target/`, editor state, or a user's real config/state folders.
 
 ## Things not to do
