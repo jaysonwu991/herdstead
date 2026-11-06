@@ -38,7 +38,18 @@ cargo build --release
 ```
 
 Requires a recent Rust toolchain. macOS and Linux (the client and daemon talk
-over a Unix socket).
+over a Unix socket). `cargo build --release` takes about 15 seconds and produces
+a 5 MB binary.
+
+To put it on your `PATH`, install it from the workspace:
+
+```bash
+cargo install --path crates/app     # → ~/.cargo/bin/herdr-plus
+```
+
+Attaching needs an interactive terminal. Run from a pipe or a script,
+`herdr-plus` refuses before it starts a session and points at the
+non-interactive commands instead; those work anywhere.
 
 ## Quick start
 
@@ -60,7 +71,7 @@ Then:
  │ ⬢ herdr-plus  1 shell ●  2 tests ○                                         │
  ├──────────────┬────────────────────────────────────────────────────────────┤
  │ herdr-plus   │ ┌ ✳ claude ● ────────────────────────────────────────────┐  │
- │              │ │ ✓ cargo test — 170 passed                              │  │
+ │              │ │ ✓ cargo test — 171 passed                              │  │
  │ WORKSPACES   │ │ see https://herdr.dev/docs and src/main.rs             │  │
  │  ● herdr-plus│ │ @src/render/markdown.rs                                │  │
  │  ○ oxide     │ └────────────────────────────────────────────────────────┘  │
@@ -327,7 +338,7 @@ Crates:
 ## Tests
 
 ```bash
-cargo test --workspace     # 170 tests
+cargo test --workspace     # 171 tests
 cargo clippy --workspace --all-targets
 ```
 

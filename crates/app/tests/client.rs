@@ -4,6 +4,7 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -219,6 +220,32 @@ fn inspect(paths: &Paths, session: &str) -> Option<herdr_plus_core::protocol::Sn
 
 fn open_socket(paths: &Paths, session: &str) -> Option<UnixStream> {
     UnixStream::connect(paths.socket(session)).ok()
+}
+
+#[test]
+fn attaching_without_a_terminal_fails_and_starts_nothing() {
+    let fixture = Fixture::new("notty");
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-plus"))
+        .args(["--session", &fixture.session])
+        .current_dir(&fixture.project)
+        .env("HERDR_PLUS_CONFIG_DIR", fixture.root.join("config"))
+        .env("HERDR_PLUS_STATE_DIR", fixture.root.join("state"))
+        .env("HERDR_PLUS_RUNTIME_DIR", fixture.root.join("run"))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .expect("running the binary");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("needs an interactive terminal"),
+        "unexpected error: {stderr}"
+    );
+    assert!(
+        !fixture.paths().socket(&fixture.session).exists(),
+        "a failed attach must not leave a daemon behind"
+    );
 }
 
 #[test]

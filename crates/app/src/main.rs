@@ -115,7 +115,18 @@ fn main() -> Result<()> {
     let theme = load_theme(&args.theme, &config, &paths);
 
     match args.command {
-        None | Some(Command::Attach) => tui::run(session, cwd, paths, config, theme, warnings),
+        None | Some(Command::Attach) => {
+            use std::io::IsTerminal as _;
+            if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+                anyhow::bail!(
+                    "herdr-plus needs an interactive terminal to attach.\n\
+                     Run it from a real terminal, or use the non-interactive commands:\n  \
+                     herdr-plus cat <file>   herdr-plus tree [dir]   herdr-plus md <file>\n  \
+                     herdr-plus ls           herdr-plus init"
+                );
+            }
+            tui::run(session, cwd, paths, config, theme, warnings)
+        }
         Some(Command::Ls) => cli::list_sessions(&paths),
         Some(Command::Kill {
             session: name,

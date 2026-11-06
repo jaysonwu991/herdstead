@@ -39,6 +39,23 @@ pub fn run(
     theme: Theme,
     warnings: Vec<String>,
 ) -> Result<()> {
+    // Take over the terminal first: if there is no usable TTY (a pipe, a
+    // script, an unattended shell), fail before a daemon is started.
+    let mut terminal = setup_terminal()?;
+    let result = attach_and_run(&mut terminal, session, cwd, paths, config, theme, warnings);
+    restore_terminal(&mut terminal);
+    result
+}
+
+fn attach_and_run(
+    terminal: &mut Tui,
+    session: String,
+    cwd: PathBuf,
+    paths: Paths,
+    config: Config,
+    theme: Theme,
+    warnings: Vec<String>,
+) -> Result<()> {
     let themes = Theme::catalog(&paths.themes_dir());
     let mut connection = client::connect_or_spawn(&paths, &session, &cwd)?;
     let mut app = App::new(session.clone(), config, theme, themes, warnings, &cwd);
@@ -74,10 +91,7 @@ pub fn run(
     spawn_input(tx.clone());
     spawn_reader(read, tx);
 
-    let mut terminal = setup_terminal()?;
-    let result = event_loop(&mut terminal, &mut app, &mut write, rx);
-    restore_terminal(&mut terminal);
-    result
+    event_loop(terminal, &mut app, &mut write, rx)
 }
 
 fn setup_terminal() -> Result<Tui> {
