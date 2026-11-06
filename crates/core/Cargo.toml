@@ -1,0 +1,13 @@
+[package]
+name = "herdr-plus-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Pure state, layout, protocol and theming for herdr-plus"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+unicode-width.workspace = true
+unicode-segmentation.workspace = true

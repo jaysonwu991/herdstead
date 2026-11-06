@@ -1,0 +1,38 @@
+[workspace]
+members = ["crates/core", "crates/render", "crates/app"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/jaysonwu991/herdr-plus"
+rust-version = "1.82"
+
+[workspace.dependencies]
+herdr-plus-core = { path = "crates/core" }
+herdr-plus-render = { path = "crates/render" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+regex = "1"
+unicode-width = "0.2"
+unicode-segmentation = "1"
+crossterm = "0.29"
+ratatui = "0.30"
+portable-pty = "0.9"
+vt100 = "0.18"
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+# bat's full syntax and theme set, so highlighting covers the languages an
+# editor does rather than syntect's small default set.
+two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
+clap = { version = "4.5", features = ["std", "help", "usage", "error-context", "derive", "string", "env"] }
+toml = "0.8"
+libc = "0.2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

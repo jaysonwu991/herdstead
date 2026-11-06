@@ -1,0 +1,94 @@
+//! Rich text rendering for herdr-plus: Markdown, syntax highlighting, folder
+//! trees, link decoration, the composer and ANSI output.
+//!
+//! Everything here is pure: renderers take text plus a [`Theme`] and return
+//! styled [`Line`]s. The terminal client maps those rows into ratatui, and the
+//! CLI prints them as ANSI, so both front-ends draw the same thing.
+
+pub mod ansi;
+pub mod code;
+pub mod composer;
+pub mod inline;
+pub mod link;
+pub mod markdown;
+pub mod style;
+pub mod term;
+pub mod tree;
+pub mod wrap;
+
+pub use style::{Line, Link, Span, Style};
+
+use herdr_plus_core::Theme;
+
+/// Renders a file the way a viewer pane shows it: Markdown is rendered, other
+/// text is syntax-highlighted, and binary files report why they cannot open.
+pub fn render_file(
+    path: &std::path::Path,
+    width: usize,
+    theme: &Theme,
+    code_options: &code::CodeOptions,
+) -> Result<Vec<Line>, String> {
+    let kind = herdr_plus_core::model::ViewerKind::for_path(path);
+    match kind {
+        herdr_plus_core::model::ViewerKind::Tree => Err(format!(
+            "{}: is a folder, open it as a tree",
+            path.display()
+        )),
+        herdr_plus_core::model::ViewerKind::Markdown => {
+            let source = std::fs::read_to_string(path)
+                .map_err(|err| format!("{}: {err}", path.display()))?;
+            Ok(markdown::render_width(&source, width, theme))
+        }
+        herdr_plus_core::model::ViewerKind::Code => code::highlight_file(
+            path,
+            &code::CodeOptions {
+                width,
+                ..code_options.clone()
+            },
+            theme,
+        ),
+    }
+}
+
+/// Renders whatever a path is: a folder tree, Markdown, or a highlighted file.
+pub fn render_path(
+    path: &std::path::Path,
+    width: usize,
+    theme: &Theme,
+    tree_options: &tree::TreeOptions,
+) -> Result<Vec<Line>, String> {
+    if path.is_dir() {
+        let scan = tree::scan(path, tree_options)?;
+        Ok(tree::render(&scan, tree_options, theme, width))
+    } else {
+        render_file(path, width, theme, &code::CodeOptions::default())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_markdown_and_code_files() {
+        let root = std::env::temp_dir().join(format!("herdr-plus-render-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let md = root.join("README.md");
+        std::fs::write(&md, "# Title\n\nbody **bold**").unwrap();
+        let rs = root.join("main.rs");
+        std::fs::write(&rs, "fn main() {}\n").unwrap();
+        let theme = Theme::midnight();
+
+        let lines = render_file(&md, 40, &theme, &code::CodeOptions::default()).unwrap();
+        assert!(lines.iter().any(|line| line.text().contains("Title")));
+
+        let lines = render_file(&rs, 40, &theme, &code::CodeOptions::default()).unwrap();
+        assert!(lines.iter().any(|line| line.text().contains("fn main")));
+
+        let lines = render_path(&root, 100, &theme, &tree::TreeOptions::default()).unwrap();
+        assert!(lines[0].text().contains("files"), "{:?}", lines[0].text());
+        assert!(lines.iter().any(|line| line.text().contains("README.md")));
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+}

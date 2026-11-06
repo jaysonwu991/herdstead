@@ -1,0 +1,24 @@
+[package]
+name = "herdr-plus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Terminal workspace manager for coding agents, with a composer-grade renderer"
+
+[[bin]]
+name = "herdr-plus"
+path = "src/main.rs"
+
+[dependencies]
+herdr-plus-core.workspace = true
+herdr-plus-render.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+crossterm.workspace = true
+ratatui.workspace = true
+portable-pty.workspace = true
+vt100.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+unicode-width.workspace = true
