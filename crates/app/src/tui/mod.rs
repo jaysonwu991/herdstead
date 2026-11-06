@@ -390,6 +390,14 @@ mod tests {
     #[test]
     fn composer_draws_a_caret_line_and_completion() {
         let mut app = demo_app();
+        // The composer completes from the focused folder; give it a known one
+        // so the popup does not depend on what happens to be in /tmp.
+        let root =
+            std::env::temp_dir().join(format!("herdstead-ui-completion-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/main.rs"), "").unwrap();
+        app.completion_root = root.clone();
+        app.completion_entries.clear();
         app.handle(AppEvent::Key(crossterm::event::KeyEvent::new(
             crossterm::event::KeyCode::Char('b'),
             crossterm::event::KeyModifiers::CONTROL,
@@ -407,6 +415,11 @@ mod tests {
         let text = buffer_text(&mut app);
         assert!(text.contains("look at @"), "{text}");
         assert!(text.contains("@path"), "completion popup missing:\n{text}");
+        assert!(
+            text.contains("src/main.rs"),
+            "completion entry missing:\n{text}"
+        );
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
