@@ -471,7 +471,7 @@ mod tests {
             area: Rect::new(0, 2, 120, 35),
             workspaces: vec![WorkspaceView {
                 id: WorkspaceId(1),
-                name: "herdr-plus".into(),
+                name: "herdstead".into(),
                 dir: "/tmp".into(),
                 status: PaneStatus::Working,
                 panes: 1,

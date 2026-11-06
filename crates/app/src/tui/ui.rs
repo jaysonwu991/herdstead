@@ -1,15 +1,15 @@
 //! Drawing the client: tab strip, sidebar, panes, composer, overlays.
 
-use herdr_plus_core::config::{format_binding, ACTIONS};
-use herdr_plus_core::detect::PaneStatus;
-use herdr_plus_core::geom::Rect as GeoRect;
-use herdr_plus_core::model::PaneKind;
-use herdr_plus_core::protocol::{PaneFrame, Snapshot};
-use herdr_plus_core::text;
-use herdr_plus_core::theme::Rgb;
-use herdr_plus_core::Theme;
-use herdr_plus_render::style::Style as RStyle;
-use herdr_plus_render::Line as RLine;
+use herdstead_core::config::{format_binding, ACTIONS};
+use herdstead_core::detect::PaneStatus;
+use herdstead_core::geom::Rect as GeoRect;
+use herdstead_core::model::PaneKind;
+use herdstead_core::protocol::{PaneFrame, Snapshot};
+use herdstead_core::text;
+use herdstead_core::theme::Rgb;
+use herdstead_core::Theme;
+use herdstead_render::style::Style as RStyle;
+use herdstead_render::Line as RLine;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -145,7 +145,7 @@ fn draw_tab_bar(frame: &mut Frame, app: &App, chrome: &ChromeRects, snapshot: Op
             bar.x,
             bar.y,
             &styled(
-                format!(" herdr-plus · {}", app.session),
+                format!(" herdstead · {}", app.session),
                 RStyle::plain().fg(theme.fg).bold(),
             ),
             bar.width,
@@ -155,7 +155,7 @@ fn draw_tab_bar(frame: &mut Frame, app: &App, chrome: &ChromeRects, snapshot: Op
     let workspace = snapshot.workspaces.get(snapshot.active_workspace);
     let mut line = RLine::new();
     if let Some(workspace) = workspace {
-        line.push(herdr_plus_render::Span::new(
+        line.push(herdstead_render::Span::new(
             ui_layout::chip_label(&workspace.name),
             RStyle::plain()
                 .fg(theme.tab_active_fg)
@@ -172,15 +172,15 @@ fn draw_tab_bar(frame: &mut Frame, app: &App, chrome: &ChromeRects, snapshot: Op
             } else {
                 RStyle::plain().fg(theme.tab_fg)
             };
-            line.push(herdr_plus_render::Span::new(
+            line.push(herdstead_render::Span::new(
                 format!(" {} {} ", index + 1, text::truncate(&tab.name, 18)),
                 style,
             ));
-            line.push(herdr_plus_render::Span::new(
+            line.push(herdstead_render::Span::new(
                 tab.status.glyph(),
                 status_style(tab.status, theme),
             ));
-            line.push(herdr_plus_render::Span::new(" ", RStyle::plain()));
+            line.push(herdstead_render::Span::new(" ", RStyle::plain()));
         }
     }
     // The prefix hint travels at the far right of the strip.
@@ -189,11 +189,11 @@ fn draw_tab_bar(frame: &mut Frame, app: &App, chrome: &ChromeRects, snapshot: Op
     let width = usize::from(bar.width);
     if used + hint.len() + 2 < width {
         let pad = width.saturating_sub(used + hint.len() + 1);
-        line.push(herdr_plus_render::Span::new(
+        line.push(herdstead_render::Span::new(
             " ".repeat(pad),
             RStyle::plain(),
         ));
-        line.push(herdr_plus_render::Span::new(
+        line.push(herdstead_render::Span::new(
             hint,
             RStyle::plain().fg(theme.faint),
         ));
@@ -263,7 +263,7 @@ fn draw_sidebar(frame: &mut Frame, app: &App, sidebar: Rect, snapshot: Option<&S
                     RStyle::plain()
                 };
                 let mut line = RLine::new();
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     format!(" {} ", status.glyph()),
                     status_style(status, theme),
                 ));
@@ -273,13 +273,13 @@ fn draw_sidebar(frame: &mut Frame, app: &App, sidebar: Rect, snapshot: Option<&S
                 if active {
                     style = style.bold();
                 }
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     text::truncate(&name, usize::from(width).saturating_sub(8)),
                     style,
                 ));
                 let label = panes.to_string();
                 let pad = usize::from(width).saturating_sub(line.width() + label.len() + 1);
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     format!("{}{} ", " ".repeat(pad), label),
                     RStyle::plain()
                         .fg(theme.muted)
@@ -296,13 +296,13 @@ fn draw_sidebar(frame: &mut Frame, app: &App, sidebar: Rect, snapshot: Option<&S
                 ..
             } => {
                 let mut line = RLine::new();
-                line.push(herdr_plus_render::Span::new("   ", RStyle::plain()));
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new("   ", RStyle::plain()));
+                line.push(herdstead_render::Span::new(
                     format!("{} ", status.glyph()),
                     status_style(status, theme),
                 ));
                 if let Some(agent) = &agent {
-                    line.push(herdr_plus_render::Span::new(
+                    line.push(herdstead_render::Span::new(
                         format!("{} ", agent.glyph()),
                         RStyle::plain().fg(theme.info),
                     ));
@@ -312,13 +312,13 @@ fn draw_sidebar(frame: &mut Frame, app: &App, sidebar: Rect, snapshot: Option<&S
                 } else {
                     RStyle::plain().fg(theme.muted)
                 };
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     text::truncate(&name, usize::from(width).saturating_sub(10)),
                     style,
                 ));
                 let label = panes.to_string();
                 let pad = usize::from(width).saturating_sub(line.width() + label.len());
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     format!("{}{}", " ".repeat(pad), label),
                     RStyle::plain().fg(theme.faint),
                 ));
@@ -332,13 +332,13 @@ fn draw_sidebar(frame: &mut Frame, app: &App, sidebar: Rect, snapshot: Option<&S
                 ..
             } => {
                 let mut line = RLine::new();
-                line.push(herdr_plus_render::Span::new("   ", RStyle::plain()));
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new("   ", RStyle::plain()));
+                line.push(herdstead_render::Span::new(
                     format!("{} ", status.glyph()),
                     status_style(status, theme),
                 ));
                 if let Some(agent) = &agent {
-                    line.push(herdr_plus_render::Span::new(
+                    line.push(herdstead_render::Span::new(
                         format!("{} ", agent.glyph()),
                         RStyle::plain().fg(theme.info),
                     ));
@@ -348,7 +348,7 @@ fn draw_sidebar(frame: &mut Frame, app: &App, sidebar: Rect, snapshot: Option<&S
                 } else {
                     RStyle::plain().fg(theme.muted)
                 };
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     text::truncate(&title, usize::from(width).saturating_sub(6)),
                     style,
                 ));
@@ -446,31 +446,31 @@ fn pane_title(pane: &PaneFrame, focused: bool, theme: &Theme) -> RLine {
     let mut line = RLine::new();
     let fg = if focused { theme.accent } else { theme.muted };
     if let Some(agent) = &pane.agent {
-        line.push(herdr_plus_render::Span::new(
+        line.push(herdstead_render::Span::new(
             format!("{} ", agent.glyph()),
             RStyle::plain().fg(theme.info),
         ));
     }
-    line.push(herdr_plus_render::Span::new(
+    line.push(herdstead_render::Span::new(
         format!(" {} ", text::truncate(&pane.title, 32)),
         RStyle::plain().fg(fg).bold(),
     ));
-    line.push(herdr_plus_render::Span::new(
+    line.push(herdstead_render::Span::new(
         format!("{} ", pane.status.glyph()),
         status_style(pane.status, theme),
     ));
     if let Some(viewer) = &pane.viewer {
         let kind = match viewer.kind {
-            herdr_plus_core::model::ViewerKind::Tree => "tree",
-            herdr_plus_core::model::ViewerKind::Markdown => "markdown",
-            herdr_plus_core::model::ViewerKind::Code => "code",
+            herdstead_core::model::ViewerKind::Tree => "tree",
+            herdstead_core::model::ViewerKind::Markdown => "markdown",
+            herdstead_core::model::ViewerKind::Code => "code",
         };
-        line.push(herdr_plus_render::Span::new(
+        line.push(herdstead_render::Span::new(
             format!("{kind} "),
             RStyle::plain().fg(theme.faint).dim(),
         ));
     } else if pane.scroll > 0 {
-        line.push(herdr_plus_render::Span::new(
+        line.push(herdstead_render::Span::new(
             format!("↑{} ", pane.scroll),
             RStyle::plain().fg(theme.warning),
         ));
@@ -653,21 +653,21 @@ fn draw_status(frame: &mut Frame, app: &App, chrome: &ChromeRects) {
         })
         .unwrap_or_default();
     let mut left = RLine::new();
-    left.push(herdr_plus_render::Span::new(
+    left.push(herdstead_render::Span::new(
         format!(" {} ", app.session),
         RStyle::plain().fg(theme.accent).bold(),
     ));
-    left.push(herdr_plus_render::Span::new(
+    left.push(herdstead_render::Span::new(
         text::truncate(&cwd, 48),
         RStyle::plain().fg(theme.muted),
     ));
     if let Some(pane) = focused {
-        left.push(herdr_plus_render::Span::new(
+        left.push(herdstead_render::Span::new(
             format!("  {}", pane.status.label()),
             status_style(pane.status, theme),
         ));
         if let Some(agent) = &pane.agent {
-            left.push(herdr_plus_render::Span::new(
+            left.push(herdstead_render::Span::new(
                 format!(" {}", agent.label()),
                 RStyle::plain().fg(theme.info),
             ));
@@ -724,16 +724,16 @@ fn draw_overlay(frame: &mut Frame, app: &App, overlay: &Overlay) {
                     }
                 }
                 let mut line = RLine::new();
-                line.push(herdr_plus_render::Span::new(" ", style));
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(" ", style));
+                line.push(herdstead_render::Span::new(
                     "▇▇ ",
                     RStyle::plain().fg(theme.accent).bg(theme.code_bg),
                 ));
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     format!("{:<10} ", theme.name),
                     style,
                 ));
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     format!("{:<6}", theme.appearance_label()),
                     style,
                 ));
@@ -772,11 +772,11 @@ fn draw_overlay(frame: &mut Frame, app: &App, overlay: &Overlay) {
                 .padding(Padding::horizontal(1));
             frame.render_widget(block, area);
             let mut line = RLine::new();
-            line.push(herdr_plus_render::Span::new(
+            line.push(herdstead_render::Span::new(
                 format!(" prefix {} ", format_binding(&app.prefix)),
                 RStyle::plain().fg(theme.accent_alt),
             ));
-            line.push(herdr_plus_render::Span::new(
+            line.push(herdstead_render::Span::new(
                 "· esc closes ",
                 RStyle::plain().fg(theme.faint),
             ));
@@ -798,11 +798,11 @@ fn draw_overlay(frame: &mut Frame, app: &App, overlay: &Overlay) {
                     .map(format_binding)
                     .unwrap_or_else(|| "-".to_string());
                 let mut line = RLine::new();
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     format!("{binding:<20}"),
                     RStyle::plain().fg(theme.warning),
                 ));
-                line.push(herdr_plus_render::Span::new(
+                line.push(herdstead_render::Span::new(
                     action.help,
                     RStyle::plain().fg(theme.fg),
                 ));

@@ -1,4 +1,4 @@
-//! Pure state, layout, protocol and theming for herdr-plus.
+//! Pure state, layout, protocol and theming for herdstead.
 //!
 //! This crate holds everything the runtime (server) and the terminal client
 //! both need, without depending on a terminal library: pane trees and their

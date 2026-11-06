@@ -1,6 +1,8 @@
-# herdr-plus
+![herdstead](assets/logo-mark.svg)
 
-**A terminal workspace manager for coding agents — with a composer-grade renderer.**
+# herdstead
+
+**A terminal workspace manager for coding agents — a homestead for your herd.**
 
 One Rust binary. Panes, tabs and workspaces that survive a detach, plus a
 terminal that recognises links, themes, Markdown, `@path` references,
@@ -12,29 +14,29 @@ syntax-highlighted files and folder trees.
 
 [herdr](https://github.com/herdrdev/herdr) established the shape: a runtime your
 coding agents live on, with panes you split, tabs you switch and a session you
-detach from and reattach to without stopping the work. `herdr-plus` keeps that
+detach from and reattach to without stopping the work. `herdstead` keeps that
 shape and adds what a modern agent terminal needs to stay readable: the kind of
 rendering you expect from a desktop chat composer, available inside the
 terminal.
 
-| | herdr-plus |
+| | herdstead |
 |---|---|
 | panes, tabs, workspaces, detach/attach | yes |
 | session restored after a restart | yes (`restore = true`) |
 | terminal output | full VT screen per pane, truecolor, scrollback |
 | links | URLs and file paths are detected, clickable, and emitted as OSC 8 |
 | themes | six built-ins plus JSON themes and per-slot overrides |
-| Markdown | composer preview, `/md`, `herdr-plus md`, and viewer panes |
+| Markdown | composer preview, `/md`, `herdstead md`, and viewer panes |
 | `@path` | completion, existence-checked colouring, click to open |
-| `cat` | syntax highlighted like an editor (`herdr-plus cat`) |
-| folder trees | `herdr-plus tree`, `/tree`, and tree viewer panes |
+| `cat` | syntax highlighted like an editor (`herdstead cat`) |
+| folder trees | `herdstead tree`, `/tree`, and tree viewer panes |
 
 ## Build
 
 ```bash
-git clone <this repo> && cd herdr-plus
+git clone <this repo> && cd herdstead
 cargo build --release
-./target/release/herdr-plus
+./target/release/herdstead
 ```
 
 Requires a recent Rust toolchain. macOS and Linux (the client and daemon talk
@@ -44,18 +46,18 @@ a 5 MB binary.
 To put it on your `PATH`, install it from the workspace:
 
 ```bash
-cargo install --path crates/app     # → ~/.cargo/bin/herdr-plus
+cargo install --path crates/app     # → ~/.cargo/bin/herdstead
 ```
 
 Attaching needs an interactive terminal. Run from a pipe or a script,
-`herdr-plus` refuses before it starts a session and points at the
+`herdstead` refuses before it starts a session and points at the
 non-interactive commands instead; those work anywhere.
 
 ## Quick start
 
 ```bash
-herdr-plus                 # start or attach to a session named after the folder
-herdr-plus -s work         # a named session
+herdstead                 # start or attach to a session named after the folder
+herdstead -s work         # a named session
 ```
 
 Then:
@@ -63,17 +65,17 @@ Then:
 - type in the pane like any terminal; `ctrl+b` is the prefix for everything else
 - `ctrl+b :` opens the **composer** — a prompt line for the focused agent
 - `ctrl+b v` / `ctrl+b s` split the pane side by side / stacked
-- `ctrl+b q` detaches; `herdr-plus` reattaches with the panes still running
+- `ctrl+b q` detaches; `herdstead` reattaches with the panes still running
 - `ctrl+b ?` lists every binding
 
 ```
  ┌ tab strip ──────────────────────────────────────────────────────── ctrl+b ┐
- │ ⬢ herdr-plus  1 shell ●  2 tests ○                                         │
+ │ ▦ herdstead  1 shell ●  2 tests ○                                         │
  ├──────────────┬────────────────────────────────────────────────────────────┤
- │ herdr-plus   │ ┌ ✳ claude ● ────────────────────────────────────────────┐  │
- │              │ │ ✓ cargo test — 171 passed                              │  │
+ │ herdstead   │ ┌ ✳ claude ● ────────────────────────────────────────────┐  │
+ │              │ │ ✓ cargo test — 173 passed                              │  │
  │ WORKSPACES   │ │ see https://herdr.dev/docs and src/main.rs             │  │
- │  ● herdr-plus│ │ @src/render/markdown.rs                                │  │
+ │  ● herdstead│ │ @src/render/markdown.rs                                │  │
  │  ○ oxide     │ └────────────────────────────────────────────────────────┘  │
  │              │ ┌ tree src ───────────────────────────────────────────────┐  │
  │ TABS         │ │ src/            42 files · 6 folders                    │  │
@@ -84,7 +86,7 @@ Then:
  │    ● claude  │                                                            │
  ├──────────────┴────────────────────────────────────────────────────────────┤
  │ ❯ ctrl+b : prompt the agent · @path opens a file or folder · / commands   │
- │ herdr-plus ~/proj  working claude          midnight · ctrl+b prompt · ?   │
+ │ herdstead ~/proj  working claude          midnight · ctrl+b prompt · ?   │
  └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -100,7 +102,7 @@ looks like a path never turns into one.
 - **Open one:** hold the link modifier (Cmd on macOS, configurable) and click.
   URLs go to the browser; paths open in a viewer pane — a folder becomes a tree,
   Markdown renders, everything else is highlighted.
-- **Without a mouse:** `herdr-plus cat` emits real OSC 8 hyperlinks, so `cat`'s
+- **Without a mouse:** `herdstead cat` emits real OSC 8 hyperlinks, so `cat`'s
   output is clickable in iTerm2, Ghostty, Kitty, WezTerm, VS Code's terminal and
   any other OSC 8 terminal.
 - **Hover feedback:** the status bar names the target under the pointer.
@@ -119,10 +121,10 @@ Six built-in palettes, all truecolor:
 | `solarized` | light | Solarized (light) |
 
 - `ctrl+b t` opens a live-preview theme menu.
-- `herdr-plus --theme nord`, `HERDR_PLUS_THEME=nord`, or `theme = "nord"` in the
+- `herdstead --theme nord`, `HERDSTEAD_THEME=nord`, or `theme = "nord"` in the
   config.
 - `/theme nord` from the composer.
-- Custom themes are JSON files in `~/.config/herdr-plus/themes/`:
+- Custom themes are JSON files in `~/.config/herdstead/themes/`:
 
 ```json
 {
@@ -134,7 +136,7 @@ Six built-in palettes, all truecolor:
 
 - `theme-colors` in the config overrides individual slots without a file.
 - The same palette drives the interface, Markdown, syntax highlighting and ANSI
-  output, so `herdr-plus cat` matches what the pane shows.
+  output, so `herdstead cat` matches what the pane shows.
 
 ### 3. Markdown
 
@@ -144,11 +146,11 @@ Six built-in palettes, all truecolor:
   (highlighted with the active theme).
 - **As a viewer pane.** `/md README.md` (or clicking a `.md` path) opens a
   rendered Markdown pane beside the agent. Viewers scroll with `j`/`k`, `g`/`G`.
-- **In the terminal.** `herdr-plus md README.md` renders to stdout anywhere;
-  `herdr-plus md --stdin` renders a pipe:
+- **In the terminal.** `herdstead md README.md` renders to stdout anywhere;
+  `herdstead md --stdin` renders a pipe:
 
 ```bash
-cat README.md | herdr-plus md --stdin
+cat README.md | herdstead md --stdin
 ```
 
 ### 4. `@path` references
@@ -164,14 +166,14 @@ The composer completes file and folder references as you type:
   typo is visible before you send
 - send with `Enter`; the prompt goes to the focused agent pane
 
-`herdr-plus cat` and the viewers treat the same syntax as a link, so a reference
+`herdstead cat` and the viewers treat the same syntax as a link, so a reference
 in the transcript is clickable too.
 
 ### 5. `cat`, highlighted like an editor
 
 ```bash
-herdr-plus cat src/render/markdown.rs
-herdr-plus cat Cargo.toml --no-line-numbers
+herdstead cat src/render/markdown.rs
+herdstead cat Cargo.toml --no-line-numbers
 ```
 
 - 213 languages via [bat](https://github.com/sharkdp/bat)'s syntax set
@@ -180,14 +182,14 @@ herdr-plus cat Cargo.toml --no-line-numbers
 - line numbers, a coloured rail, tabs expanded to four columns
 - theme-matched colours, including a monochrome mode
 - OSC 8 links for references in the file
-- `herdr-plus languages` lists what is supported
+- `herdstead languages` lists what is supported
 
 ### 6. Folder trees
 
 ```bash
-herdr-plus tree                    # the current folder
-herdr-plus tree src --depth 3
-herdr-plus tree . --all            # include target/, node_modules/, .git/
+herdstead tree                    # the current folder
+herdstead tree src --depth 3
+herdstead tree . --all            # include target/, node_modules/, .git/
 ```
 
 - folders first, then files, each with a size
@@ -203,18 +205,18 @@ The daemon owns the panes; the client is a view. Closing the terminal, losing
 SSH, or `ctrl+b q` leaves the shells and agents running.
 
 ```bash
-herdr-plus ls                  # live sessions and their pane counts
-herdr-plus kill work           # stop a session, keeping its saved layout
-herdr-plus kill work --forget  # stop it and delete the layout
+herdstead ls                  # live sessions and their pane counts
+herdstead kill work           # stop a session, keeping its saved layout
+herdstead kill work --forget  # stop it and delete the layout
 ```
 
-- sessions live under `$XDG_RUNTIME_DIR/herdr-plus/<name>.sock` (or
-  `/tmp/herdr-plus-<uid>/`), one daemon per session
-- the layout is saved to `$XDG_STATE_HOME/herdr-plus/sessions/<name>.json`, so
+- sessions live under `$XDG_RUNTIME_DIR/herdstead/<name>.sock` (or
+  `/tmp/herdstead-<uid>/`), one daemon per session
+- the layout is saved to `$XDG_STATE_HOME/herdstead/sessions/<name>.json`, so
   with `restore = true` the next start re-creates every pane in its folder
 - panes report their folder through OSC 7, which the new-pane and viewer paths
   use as their base
-- a daemon's log is at `$XDG_STATE_HOME/herdr-plus/logs/<name>.log`
+- a daemon's log is at `$XDG_STATE_HOME/herdstead/logs/<name>.log`
 
 ## Keys
 
@@ -268,9 +270,9 @@ close-pane = "prefix+shift+q"
 
 ## Configuration
 
-`herdr-plus init` writes `~/.config/herdr-plus/config.toml`; a project can add
-`.herdr-plus/config.toml` (or `herdr-plus.toml`) which layers over it.
-`herdr-plus config` prints the resolved result.
+`herdstead init` writes `~/.config/herdstead/config.toml`; a project can add
+`.herdstead/config.toml` (or `herdstead.toml`) which layers over it.
+`herdstead config` prints the resolved result.
 
 ```toml
 theme = "midnight"
@@ -294,11 +296,11 @@ accent = "#8b5cf6"
 
 | environment variable | meaning |
 |---|---|
-| `HERDR_PLUS_SESSION` | default session name |
-| `HERDR_PLUS_THEME` | theme name |
-| `HERDR_PLUS_CONFIG_DIR` | config root (themes live in `themes/`) |
-| `HERDR_PLUS_STATE_DIR` | saved layouts and logs |
-| `HERDR_PLUS_RUNTIME_DIR` | sockets |
+| `HERDSTEAD_SESSION` | default session name |
+| `HERDSTEAD_THEME` | theme name |
+| `HERDSTEAD_CONFIG_DIR` | config root (themes live in `themes/`) |
+| `HERDSTEAD_STATE_DIR` | saved layouts and logs |
+| `HERDSTEAD_RUNTIME_DIR` | sockets |
 
 ## How it works
 
@@ -332,20 +334,20 @@ Crates:
   `@path` parsing, text utilities. No terminal dependency.
 - `crates/render` — Markdown, syntax highlighting, trees, link decoration, the
   composer, ANSI output. Pure: text plus a theme in, styled rows out. The TUI and
-  the CLI share it, so `herdr-plus cat` and a viewer pane draw the same thing.
+  the CLI share it, so `herdstead cat` and a viewer pane draw the same thing.
 - `crates/app` — the daemon (`server/`), the TUI client (`tui/`) and the CLI.
 
 ## Tests
 
 ```bash
-cargo test --workspace     # 171 tests
+cargo test --workspace     # 173 tests
 cargo clippy --workspace --all-targets
 ```
 
 - unit tests for layout geometry, panes, themes, mention parsing, Markdown,
   highlighting, trees, wrapping and link decoration
-- render tests that assert exact columns, links surviving a wrap, and table
-  alignment
+- render tests that assert exact columns, links surviving a wrap, table
+  alignment, and image placeholders
 - `tests/runtime.rs` drives a real daemon: a shell pane, typed keys, splits,
   scrollback, viewer panes, kill, restart and layout restore
 - `tests/client.rs` drives the real TUI in a PTY: the drawn chrome, prefix
@@ -364,10 +366,26 @@ cargo clippy --workspace --all-targets
   machine (not supported yet) would need that file locally.
 - Scrollback is a fixed number of rows (`scrollback`, default 5000).
 
+## Name and mark
+
+`herdstead` is a coinage: **herd** + **stead** — a homestead for a herd. The
+mark is a stead whose window is a pane grid, with one pane lit for the agent
+that has focus; the amber is the hearth. Assets live in `assets/`:
+
+| file | use |
+|---|---|
+| `logo.svg` | horizontal lockup, dark backgrounds |
+| `logo-light.svg` | horizontal lockup, light backgrounds |
+| `logo-mark.svg` | square mark, app icon and avatar |
+| `logo-mark-mono.svg` | single-ink mark, print and one-colour use |
+
+Palette: ink `#10161F`, mist `#D7DCE5`, hearth `#F0A64A` (and `#A6620F` for the
+tagline on light backgrounds).
+
 ## Credits
 
 Inspired by [herdr](https://github.com/herdrdev/herdr) by herdrdev
-(Apache-2.0): the workspace/tab/pane runtime, detach and reattach. `herdr-plus`
+(Apache-2.0): the workspace/tab/pane runtime, detach and reattach. `herdstead`
 is an independent implementation, not a fork.
 
 Syntax highlighting uses [syntect](https://github.com/trishume/syntect) with

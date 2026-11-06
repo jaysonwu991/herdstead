@@ -8,8 +8,8 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use herdr_plus_core::paths::Paths;
-use herdr_plus_core::protocol::{decode_line, encode_line, Event, Request};
+use herdstead_core::paths::Paths;
+use herdstead_core::protocol::{decode_line, encode_line, Event, Request};
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 
 struct Fixture {
@@ -21,7 +21,7 @@ struct Fixture {
 impl Fixture {
     fn new(tag: &str) -> Self {
         let root =
-            std::env::temp_dir().join(format!("herdr-plus-client-{}-{tag}", std::process::id()));
+            std::env::temp_dir().join(format!("herdstead-client-{}-{tag}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
         std::fs::create_dir_all(root.join("config")).unwrap();
         std::fs::create_dir_all(root.join("state")).unwrap();
@@ -84,14 +84,14 @@ impl Tui {
                 pixel_height: 0,
             })
             .expect("opening a pty");
-        let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_herdr-plus"));
+        let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_herdstead"));
         command.args(["--session", &fixture.session]);
         command.cwd(&fixture.project);
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
-        command.env("HERDR_PLUS_CONFIG_DIR", fixture.root.join("config"));
-        command.env("HERDR_PLUS_STATE_DIR", fixture.root.join("state"));
-        command.env("HERDR_PLUS_RUNTIME_DIR", fixture.root.join("run"));
+        command.env("HERDSTEAD_CONFIG_DIR", fixture.root.join("config"));
+        command.env("HERDSTEAD_STATE_DIR", fixture.root.join("state"));
+        command.env("HERDSTEAD_RUNTIME_DIR", fixture.root.join("run"));
         let child = pair.slave.spawn_command(command).expect("starting the tui");
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().expect("pty reader");
@@ -188,7 +188,7 @@ fn kill_session(paths: &Paths, session: &str) {
 }
 
 /// Reads the first snapshot from a live session.
-fn inspect(paths: &Paths, session: &str) -> Option<herdr_plus_core::protocol::Snapshot> {
+fn inspect(paths: &Paths, session: &str) -> Option<herdstead_core::protocol::Snapshot> {
     let stream = UnixStream::connect(paths.socket(session)).ok()?;
     stream
         .set_read_timeout(Some(Duration::from_millis(400)))
@@ -225,12 +225,12 @@ fn open_socket(paths: &Paths, session: &str) -> Option<UnixStream> {
 #[test]
 fn attaching_without_a_terminal_fails_and_starts_nothing() {
     let fixture = Fixture::new("notty");
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_herdr-plus"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_herdstead"))
         .args(["--session", &fixture.session])
         .current_dir(&fixture.project)
-        .env("HERDR_PLUS_CONFIG_DIR", fixture.root.join("config"))
-        .env("HERDR_PLUS_STATE_DIR", fixture.root.join("state"))
-        .env("HERDR_PLUS_RUNTIME_DIR", fixture.root.join("run"))
+        .env("HERDSTEAD_CONFIG_DIR", fixture.root.join("config"))
+        .env("HERDSTEAD_STATE_DIR", fixture.root.join("state"))
+        .env("HERDSTEAD_RUNTIME_DIR", fixture.root.join("run"))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

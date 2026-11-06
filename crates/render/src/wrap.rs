@@ -1,7 +1,7 @@
 //! Word wrapping that keeps styles and links on the characters they belong to.
 
 use crate::style::{Line, Link, Span, Style};
-use herdr_plus_core::text::char_width;
+use herdstead_core::text::char_width;
 
 const NO_LINK: u32 = u32::MAX;
 
@@ -186,7 +186,7 @@ pub fn indent_lines(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::theme::Rgb;
+    use herdstead_core::theme::Rgb;
 
     fn link_line() -> Line {
         let mut line = Line::plain("alpha beta ");

@@ -1,9 +1,9 @@
 [package]
-name = "herdr-plus-core"
+name = "herdstead-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Pure state, layout, protocol and theming for herdr-plus"
+description = "Pure state, layout, protocol and theming for herdstead"
 
 [dependencies]
 serde.workspace = true

@@ -4,12 +4,12 @@ use std::io::Read;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use herdr_plus_core::config::{format_binding, ACTIONS};
-use herdr_plus_core::paths::Paths;
-use herdr_plus_core::theme::Theme;
-use herdr_plus_core::Config;
-use herdr_plus_render::ansi::{self, AnsiOptions};
-use herdr_plus_render::{code, markdown, tree, Line};
+use herdstead_core::config::{format_binding, ACTIONS};
+use herdstead_core::paths::Paths;
+use herdstead_core::theme::Theme;
+use herdstead_core::Config;
+use herdstead_render::ansi::{self, AnsiOptions};
+use herdstead_render::{code, markdown, tree, Line};
 
 use crate::client::Connection;
 
@@ -88,7 +88,7 @@ pub fn preview(path: &Path, theme: &Theme, config: &Config) -> Result<()> {
         let lines = tree::render(&scan, &options, theme, width());
         return print_lines(&lines, theme, true);
     }
-    let lines = lift(herdr_plus_render::render_file(
+    let lines = lift(herdstead_render::render_file(
         path,
         width(),
         theme,

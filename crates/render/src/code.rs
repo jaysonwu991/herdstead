@@ -3,9 +3,9 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use herdr_plus_core::text;
-use herdr_plus_core::theme::Rgb;
-use herdr_plus_core::Theme;
+use herdstead_core::text;
+use herdstead_core::theme::Rgb;
+use herdstead_core::Theme;
 use syntect::highlighting::{FontStyle, Theme as SyntectTheme};
 use syntect::parsing::SyntaxSet;
 use two_face::theme::LazyThemeSet;
@@ -76,7 +76,7 @@ pub fn language_name(path: &Path) -> Option<String> {
         .map(|syntax| syntax.name.clone())
 }
 
-/// Every language syntect can highlight, for `herdr-plus languages`.
+/// Every language syntect can highlight, for `herdstead languages`.
 pub fn supported_languages() -> Vec<String> {
     let mut names: Vec<String> = syntaxes()
         .syntaxes()

@@ -1,7 +1,7 @@
 //! Mapping a terminal pane's cells onto styled rows.
 
-use herdr_plus_core::protocol::{GridFrame, StyledLine};
-use herdr_plus_core::Theme;
+use herdstead_core::protocol::{GridFrame, StyledLine};
+use herdstead_core::Theme;
 
 use crate::style::{Line, Span, Style};
 
@@ -25,9 +25,9 @@ pub fn term_lines(frame: &GridFrame, theme: &Theme) -> Vec<Line> {
         .collect()
 }
 
-pub fn term_style(style: &herdr_plus_core::protocol::TermStyle, theme: &Theme) -> Style {
+pub fn term_style(style: &herdstead_core::protocol::TermStyle, theme: &Theme) -> Style {
     let mut out = Style::plain().fg(theme.resolve(style.fg));
-    if !matches!(style.bg, herdr_plus_core::protocol::TermColor::Default) {
+    if !matches!(style.bg, herdstead_core::protocol::TermColor::Default) {
         out = out.bg(theme.resolve_bg(style.bg));
     }
     if style.bold {
@@ -71,7 +71,7 @@ fn trim_trailing_space(line: &mut Line) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::protocol::{StyledLine, StyledRun, TermColor, TermStyle};
+    use herdstead_core::protocol::{StyledLine, StyledRun, TermColor, TermStyle};
 
     fn run(text: &str, style: TermStyle) -> StyledRun {
         StyledRun {
@@ -108,12 +108,12 @@ mod tests {
         assert_eq!(rendered.text(), "ok warn");
         assert_eq!(
             rendered.spans[0].style.fg,
-            Some(herdr_plus_core::theme::Rgb::new(1, 2, 3))
+            Some(herdstead_core::theme::Rgb::new(1, 2, 3))
         );
         assert!(rendered.spans[0].style.bold);
         assert_eq!(
             rendered.spans[1].style.fg,
-            Some(herdr_plus_core::theme::xterm256(3))
+            Some(herdstead_core::theme::xterm256(3))
         );
         assert!(rendered.spans[1].style.dim);
     }

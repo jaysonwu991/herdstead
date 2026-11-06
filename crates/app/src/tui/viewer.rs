@@ -2,11 +2,11 @@
 
 use std::path::PathBuf;
 
-use herdr_plus_core::config::Config;
-use herdr_plus_core::model::ViewerKind;
-use herdr_plus_core::protocol::PaneFrame;
-use herdr_plus_core::Theme;
-use herdr_plus_render::{code, markdown, tree, Line};
+use herdstead_core::config::Config;
+use herdstead_core::model::ViewerKind;
+use herdstead_core::protocol::PaneFrame;
+use herdstead_core::Theme;
+use herdstead_render::{code, markdown, tree, Line};
 
 /// Renders the content of a viewer pane at `width` columns.
 pub fn render(
@@ -52,13 +52,13 @@ pub fn render(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::model::{PaneKind, ViewerSpec};
-    use herdr_plus_core::protocol::PaneFrame;
+    use herdstead_core::model::{PaneKind, ViewerSpec};
+    use herdstead_core::protocol::PaneFrame;
 
     fn pane(path: &str, kind: ViewerKind) -> PaneFrame {
         PaneFrame {
-            id: herdr_plus_core::ids::PaneId(1),
-            rect: herdr_plus_core::geom::Rect::new(0, 0, 40, 20),
+            id: herdstead_core::ids::PaneId(1),
+            rect: herdstead_core::geom::Rect::new(0, 0, 40, 20),
             title: "viewer".into(),
             cwd: "/tmp".into(),
             command: String::new(),
@@ -68,7 +68,7 @@ mod tests {
                 kind,
             }),
             agent: None,
-            status: herdr_plus_core::detect::PaneStatus::Idle,
+            status: herdstead_core::detect::PaneStatus::Idle,
             bell: false,
             exit_code: None,
             scroll: 0,
@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn renders_each_viewer_kind() {
-        let root = std::env::temp_dir().join(format!("herdr-plus-viewer-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-viewer-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("a.md"), "# Title\n\nbody").unwrap();
         std::fs::write(root.join("a.rs"), "fn main() {}\n").unwrap();

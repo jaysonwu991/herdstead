@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="96" viewBox="0 0 400 96" role="img" aria-label="herdstead">
+  <title>herdstead</title>
+  <desc>Wordmark for light backgrounds.</desc>
+  <g>
+  <rect x="4" y="4" width="88" height="88" rx="20" fill="#10161F"/>
+  <path d="M19 49 L48 24 L77 49" fill="none" stroke="#F0A64A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="22" y="49" width="52" height="31" rx="4" fill="#D7DCE5"/>
+  <path d="M48 49 V80 M22 64.5 H74" stroke="#10161F" stroke-width="6"/>
+  <rect x="51" y="68" width="21" height="10" rx="2" fill="#F0A64A"/>
+  </g>
+  <text x="112" y="53" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="40" font-weight="600" letter-spacing="-0.8" fill="#10161F">herdstead</text>
+  <text x="114" y="74" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="10" font-weight="600" letter-spacing="2.0" fill="#A6620F">A HOMESTEAD FOR YOUR HERD</text>
+</svg>

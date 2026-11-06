@@ -7,8 +7,8 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Context, Result};
-use herdr_plus_core::paths::Paths;
-use herdr_plus_core::protocol::{decode_line, encode_line, Event, Request, Snapshot};
+use herdstead_core::paths::Paths;
+use herdstead_core::protocol::{decode_line, encode_line, Event, Request, Snapshot};
 
 /// A framed connection to a session daemon.
 pub struct Connection {
@@ -103,7 +103,7 @@ pub fn connect_or_spawn(paths: &Paths, session: &str, cwd: &Path) -> Result<Conn
 /// Starts the daemon in its own session, with output going to a log file.
 pub fn spawn_server(paths: &Paths, session: &str, cwd: &Path) -> Result<()> {
     paths.ensure()?;
-    let exe = std::env::current_exe().context("finding the herdr-plus binary")?;
+    let exe = std::env::current_exe().context("finding the herdstead binary")?;
     let log_path = paths.log_file(session);
     if let Some(parent) = log_path.parent() {
         std::fs::create_dir_all(parent).ok();
@@ -122,7 +122,7 @@ pub fn spawn_server(paths: &Paths, session: &str, cwd: &Path) -> Result<()> {
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(log))
-        .env("HERDR_PLUS_SERVER", "1");
+        .env("HERDSTEAD_SERVER", "1");
     #[cfg(unix)]
     unsafe {
         use std::os::unix::process::CommandExt;

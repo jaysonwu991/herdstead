@@ -250,7 +250,7 @@ fn plausible_slash_token(token: &str) -> bool {
         "node_modules",
         ".github",
         ".agents",
-        ".herdr-plus",
+        ".herdstead",
         "skills",
         "tmp",
         "var",

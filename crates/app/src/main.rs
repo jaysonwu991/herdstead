@@ -1,4 +1,4 @@
-//! herdr-plus: a terminal workspace manager for coding agents, with a
+//! herdstead: a terminal workspace manager for coding agents, with a
 //! composer-grade renderer for Markdown, links, code and folder trees.
 
 mod cli;
@@ -10,25 +10,25 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use herdr_plus_core::config::Config;
-use herdr_plus_core::paths::{default_session_name, sanitize_session, Paths};
-use herdr_plus_core::theme::Theme;
+use herdstead_core::config::Config;
+use herdstead_core::paths::{default_session_name, sanitize_session, Paths};
+use herdstead_core::theme::Theme;
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "herdr-plus",
+    name = "herdstead",
     version,
-    about = "Terminal workspace manager for coding agents",
-    long_about = "herdr-plus keeps coding agents running in panes you can split, tab and detach from. \
+    about = "Terminal workspace manager for coding agents — a homestead for your herd",
+    long_about = "herdstead keeps coding agents running in panes you can split, tab and detach from. \
 Its terminal and viewers render links, themes, Markdown, @path references, highlighted files and folder trees."
 )]
 struct Args {
     /// Session to use (defaults to the current folder's name).
-    #[arg(long, short = 's', global = true, env = "HERDR_PLUS_SESSION")]
+    #[arg(long, short = 's', global = true, env = "HERDSTEAD_SESSION")]
     session: Option<String>,
 
     /// Theme for this run: midnight, daylight, nord, gruvbox, mono, solarized, or a theme file.
-    #[arg(long, global = true, env = "HERDR_PLUS_THEME")]
+    #[arg(long, global = true, env = "HERDSTEAD_THEME")]
     theme: Option<String>,
 
     /// Run the session daemon in the foreground (used internally by `attach`).
@@ -110,7 +110,7 @@ fn main() -> Result<()> {
 
     let (config, warnings) = Config::load(&cwd, &paths);
     for warning in &warnings {
-        eprintln!("herdr-plus: {warning}");
+        eprintln!("herdstead: {warning}");
     }
     let theme = load_theme(&args.theme, &config, &paths);
 
@@ -119,10 +119,10 @@ fn main() -> Result<()> {
             use std::io::IsTerminal as _;
             if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
                 anyhow::bail!(
-                    "herdr-plus needs an interactive terminal to attach.\n\
+                    "herdstead needs an interactive terminal to attach.\n\
                      Run it from a real terminal, or use the non-interactive commands:\n  \
-                     herdr-plus cat <file>   herdr-plus tree [dir]   herdr-plus md <file>\n  \
-                     herdr-plus ls           herdr-plus init"
+                     herdstead cat <file>   herdstead tree [dir]   herdstead md <file>\n  \
+                     herdstead ls           herdstead init"
                 );
             }
             tui::run(session, cwd, paths, config, theme, warnings)
@@ -179,12 +179,12 @@ pub fn load_theme(name: &Option<String>, config: &Config, paths: &Paths) -> Them
             .exists()
     {
         eprintln!(
-            "herdr-plus: unknown theme `{requested}`, using `{}` (try `herdr-plus themes`)",
+            "herdstead: unknown theme `{requested}`, using `{}` (try `herdstead themes`)",
             theme.name
         );
     }
     if let Err(err) = theme.apply_overrides(&config.theme_colors) {
-        eprintln!("herdr-plus: theme-colors: {err}");
+        eprintln!("herdstead: theme-colors: {err}");
     }
     theme
 }

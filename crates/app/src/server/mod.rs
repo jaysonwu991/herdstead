@@ -14,14 +14,14 @@ use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use herdr_plus_core::config::Config;
-use herdr_plus_core::detect::{self, AgentKind};
-use herdr_plus_core::geom::Rect;
-use herdr_plus_core::ids::PaneId;
-use herdr_plus_core::layout::SplitDir;
-use herdr_plus_core::model::{PaneMeta, SessionState, Size, ViewerKind, ViewerSpec};
-use herdr_plus_core::paths::Paths;
-use herdr_plus_core::protocol::{
+use herdstead_core::config::Config;
+use herdstead_core::detect::{self, AgentKind};
+use herdstead_core::geom::Rect;
+use herdstead_core::ids::PaneId;
+use herdstead_core::layout::SplitDir;
+use herdstead_core::model::{PaneMeta, SessionState, Size, ViewerKind, ViewerSpec};
+use herdstead_core::paths::Paths;
+use herdstead_core::protocol::{
     decode_line, encode_line, Action, Event, PaneFrame, Request, Snapshot, TabView, WorkspaceView,
 };
 
@@ -76,7 +76,7 @@ const SAVE_INTERVAL: Duration = Duration::from_secs(2);
 
 pub fn run(session: String) -> Result<()> {
     let paths = Paths::discover();
-    paths.ensure().context("creating herdr-plus folders")?;
+    paths.ensure().context("creating herdstead folders")?;
     let cwd = std::env::current_dir().context("reading the current folder")?;
     let (config, mut warnings) = Config::load(&cwd, &paths);
 
@@ -973,7 +973,7 @@ impl Runtime {
             .collect();
         Snapshot {
             session: self.session.clone(),
-            version: herdr_plus_core::VERSION.to_string(),
+            version: herdstead_core::VERSION.to_string(),
             seq: self.state.seq,
             size: self.state.size,
             area,
@@ -1036,7 +1036,7 @@ impl Runtime {
         }
         self.save();
         for warning in &self.warnings {
-            eprintln!("herdr-plus: {warning}");
+            eprintln!("herdstead: {warning}");
         }
     }
 }
@@ -1113,7 +1113,7 @@ mod tests {
         assert_eq!(snapshot.panes.len(), 1);
         assert_eq!(
             snapshot.panes[0].kind,
-            herdr_plus_core::model::PaneKind::Shell
+            herdstead_core::model::PaneKind::Shell
         );
         let json = serde_json::to_string(&snapshot).unwrap();
         assert!(json.contains("\"shell\""));

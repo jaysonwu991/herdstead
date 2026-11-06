@@ -1,17 +1,17 @@
 [package]
-name = "herdr-plus"
+name = "herdstead"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Terminal workspace manager for coding agents, with a composer-grade renderer"
+description = "Terminal workspace manager for coding agents: a homestead for your herd"
 
 [[bin]]
-name = "herdr-plus"
+name = "herdstead"
 path = "src/main.rs"
 
 [dependencies]
-herdr-plus-core.workspace = true
-herdr-plus-render.workspace = true
+herdstead-core.workspace = true
+herdstead-render.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 crossterm.workspace = true

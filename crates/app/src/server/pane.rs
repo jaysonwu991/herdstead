@@ -6,7 +6,7 @@ use std::sync::mpsc::Sender;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
-use herdr_plus_core::ids::PaneId;
+use herdstead_core::ids::PaneId;
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 
 use super::Msg;
@@ -45,9 +45,9 @@ impl PanePty {
         command.cwd(cwd);
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
-        command.env("HERDR_PLUS", "1");
-        command.env("HERDR_PLUS_PANE", pane.to_string());
-        command.env("HERDR_PLUS_SESSION_PID", std::process::id().to_string());
+        command.env("HERDSTEAD", "1");
+        command.env("HERDSTEAD_PANE", pane.to_string());
+        command.env("HERDSTEAD_SESSION_PID", std::process::id().to_string());
         let mut child = pair
             .slave
             .spawn_command(command)

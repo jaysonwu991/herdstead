@@ -1,8 +1,8 @@
-//! ANSI output for the CLI (`herdr-plus cat`, `tree`, `md`).
+//! ANSI output for the CLI (`herdstead cat`, `tree`, `md`).
 
 use std::io::Write;
 
-use herdr_plus_core::Theme;
+use herdstead_core::Theme;
 
 use crate::style::{Line, Link, Style};
 
@@ -115,7 +115,7 @@ fn osc8_open(link: &Link) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::theme::Rgb;
+    use herdstead_core::theme::Rgb;
 
     fn theme() -> Theme {
         Theme::midnight()

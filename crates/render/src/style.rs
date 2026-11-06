@@ -4,8 +4,8 @@
 //! click can be answered from the characters under the pointer, which is how
 //! URLs and `@path` references stay clickable after wrapping.
 
-use herdr_plus_core::theme::Rgb;
-use herdr_plus_core::Theme;
+use herdstead_core::theme::Rgb;
+use herdstead_core::Theme;
 
 /// Where a link points.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -141,7 +141,7 @@ impl Span {
     }
 
     pub fn width(&self) -> usize {
-        herdr_plus_core::text::display_width(&self.text)
+        herdstead_core::text::display_width(&self.text)
     }
 
     /// Same text and link, new style.
@@ -270,7 +270,7 @@ impl Line {
             }
             let mut text = String::new();
             for ch in span.text.chars() {
-                let ch_width = herdr_plus_core::text::char_width(ch);
+                let ch_width = herdstead_core::text::char_width(ch);
                 if used + ch_width > limit {
                     break;
                 }

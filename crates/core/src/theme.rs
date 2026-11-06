@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     fn custom_theme_file_extends_a_builtin() {
-        let dir = std::env::temp_dir().join(format!("herdr-plus-theme-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("herdstead-theme-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("plum.json");
         std::fs::write(

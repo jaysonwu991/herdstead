@@ -3,11 +3,11 @@
 //! The same functions are used to draw and to hit-test, so a click always lands
 //! on the row the user sees.
 
-use herdr_plus_core::detect::{AgentKind, PaneStatus};
-use herdr_plus_core::geom::{Dir, Rect};
-use herdr_plus_core::ids::PaneId;
-use herdr_plus_core::protocol::Snapshot;
-use herdr_plus_core::text;
+use herdstead_core::detect::{AgentKind, PaneStatus};
+use herdstead_core::geom::{Dir, Rect};
+use herdstead_core::ids::PaneId;
+use herdstead_core::protocol::Snapshot;
+use herdstead_core::text;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ChromeState {
@@ -103,7 +103,7 @@ pub fn tab_hits(chrome: &Chrome, snapshot: &Snapshot) -> Vec<(Rect, usize)> {
 }
 
 pub fn chip_label(name: &str) -> String {
-    format!(" ⬢ {} ", text::truncate(name, 16))
+    format!(" ▦ {} ", text::truncate(name, 16))
 }
 
 /// A sidebar line, rendered and hit-tested from the same list.
@@ -261,8 +261,8 @@ pub fn overlay_rect(area: Rect, rows: usize) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::model::Size;
-    use herdr_plus_core::protocol::{PaneFrame, Snapshot, TabView, WorkspaceView};
+    use herdstead_core::model::Size;
+    use herdstead_core::protocol::{PaneFrame, Snapshot, TabView, WorkspaceView};
 
     fn snapshot() -> Snapshot {
         Snapshot {
@@ -272,14 +272,14 @@ mod tests {
             size: Size { rows: 24, cols: 80 },
             area: Rect::new(28, 1, 52, 18),
             workspaces: vec![WorkspaceView {
-                id: herdr_plus_core::ids::WorkspaceId(1),
-                name: "herdr-plus".into(),
+                id: herdstead_core::ids::WorkspaceId(1),
+                name: "herdstead".into(),
                 dir: "/tmp".into(),
                 status: PaneStatus::Idle,
                 panes: 1,
                 agent: Some(AgentKind::Claude),
                 tabs: vec![TabView {
-                    id: herdr_plus_core::ids::TabId(1),
+                    id: herdstead_core::ids::TabId(1),
                     name: "shell".into(),
                     status: PaneStatus::Idle,
                     panes: 1,
@@ -296,7 +296,7 @@ mod tests {
                 title: "shell".into(),
                 cwd: "/tmp".into(),
                 command: "zsh".into(),
-                kind: herdr_plus_core::model::PaneKind::Shell,
+                kind: herdstead_core::model::PaneKind::Shell,
                 viewer: None,
                 agent: Some(AgentKind::Claude),
                 status: PaneStatus::Working,
@@ -366,7 +366,7 @@ mod tests {
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].1, 0);
         assert!(hits[0].0.y == 0);
-        assert!(hits[0].0.x >= text::display_width(&chip_label("herdr-plus")) as u16);
+        assert!(hits[0].0.x >= text::display_width(&chip_label("herdstead")) as u16);
     }
 
     #[test]
@@ -399,7 +399,7 @@ mod tests {
             title: "logs".into(),
             cwd: "/tmp".into(),
             command: "zsh".into(),
-            kind: herdr_plus_core::model::PaneKind::Shell,
+            kind: herdstead_core::model::PaneKind::Shell,
             viewer: None,
             agent: None,
             status: PaneStatus::Idle,

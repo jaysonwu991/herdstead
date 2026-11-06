@@ -1,8 +1,8 @@
 //! A Markdown renderer for the terminal: headings, lists, task lists, quotes,
 //! tables, rules, fenced code and inline styles, wrapped to a column width.
 
-use herdr_plus_core::text;
-use herdr_plus_core::Theme;
+use herdstead_core::text;
+use herdstead_core::Theme;
 
 use crate::code::{highlight_snippet, CodeOptions};
 use crate::inline::parse_inline;
@@ -767,6 +767,21 @@ mod tests {
         }
         let joined: String = lines.iter().map(Line::text).collect::<Vec<_>>().join(" ");
         assert_eq!(joined.split_whitespace().count(), 60);
+    }
+
+    #[test]
+    fn an_image_paragraph_renders_as_a_placeholder_link() {
+        let lines = render_width("![herdstead](assets/logo.svg)", 40, &theme());
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].text(), "▧ herdstead");
+        assert_eq!(
+            lines[0].links()[0].0,
+            crate::style::Link::Path {
+                path: "assets/logo.svg".into(),
+                line: None,
+                column: None
+            }
+        );
     }
 
     #[test]

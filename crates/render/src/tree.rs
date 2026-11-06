@@ -2,8 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
-use herdr_plus_core::text;
-use herdr_plus_core::Theme;
+use herdstead_core::text;
+use herdstead_core::Theme;
 
 use crate::code::bytes;
 use crate::style::{Line, Span, Style};
@@ -329,7 +329,7 @@ mod tests {
 
     fn fixture(tag: &str) -> PathBuf {
         let root =
-            std::env::temp_dir().join(format!("herdr-plus-tree-{}-{tag}", std::process::id()));
+            std::env::temp_dir().join(format!("herdstead-tree-{}-{tag}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
         std::fs::create_dir_all(root.join("src")).unwrap();
         std::fs::create_dir_all(root.join("target/debug")).unwrap();

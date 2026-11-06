@@ -7,10 +7,10 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use herdr_plus_core::geom::Rect;
-use herdr_plus_core::model::{PaneKind, Size, ViewerKind};
-use herdr_plus_core::paths::Paths;
-use herdr_plus_core::protocol::{
+use herdstead_core::geom::Rect;
+use herdstead_core::model::{PaneKind, Size, ViewerKind};
+use herdstead_core::paths::Paths;
+use herdstead_core::protocol::{
     decode_line, encode_line, Action, Event, Key, KeyInput, Request, Snapshot,
 };
 
@@ -22,7 +22,7 @@ struct Session {
 
 impl Session {
     fn start(tag: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("herdr-plus-it-{}-{tag}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-it-{}-{tag}", std::process::id()));
         std::fs::remove_dir_all(&root).ok();
         std::fs::create_dir_all(root.join("config")).unwrap();
         std::fs::create_dir_all(root.join("state")).unwrap();
@@ -41,12 +41,12 @@ impl Session {
         std::fs::create_dir_all(root.join("project/src")).unwrap();
         std::fs::write(root.join("project/src/main.rs"), "fn main() {}\n").unwrap();
         let name = "it".to_string();
-        let child = Command::new(env!("CARGO_BIN_EXE_herdr-plus"))
+        let child = Command::new(env!("CARGO_BIN_EXE_herdstead"))
             .args(["--server", "--session", &name])
             .current_dir(root.join("project"))
-            .env("HERDR_PLUS_CONFIG_DIR", root.join("config"))
-            .env("HERDR_PLUS_STATE_DIR", root.join("state"))
-            .env("HERDR_PLUS_RUNTIME_DIR", root.join("run"))
+            .env("HERDSTEAD_CONFIG_DIR", root.join("config"))
+            .env("HERDSTEAD_STATE_DIR", root.join("state"))
+            .env("HERDSTEAD_RUNTIME_DIR", root.join("run"))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -179,7 +179,7 @@ impl ConnectionGuard {
     }
 }
 
-fn pane_text(snapshot: &Snapshot, id: herdr_plus_core::ids::PaneId) -> String {
+fn pane_text(snapshot: &Snapshot, id: herdstead_core::ids::PaneId) -> String {
     snapshot
         .panes
         .iter()
@@ -220,7 +220,7 @@ fn splits_focus_and_close_keep_the_tree_consistent() {
     let first = conn.snapshot().panes[0].id;
 
     conn.action(Action::Split {
-        dir: herdr_plus_core::layout::SplitDir::Vertical,
+        dir: herdstead_core::layout::SplitDir::Vertical,
     })
     .unwrap();
     let snapshot = conn.wait("a second pane", |snapshot| snapshot.panes.len() == 2);
@@ -379,7 +379,7 @@ fn a_restored_session_keeps_its_layout() {
     {
         let mut conn = session.connect();
         conn.action(Action::Split {
-            dir: herdr_plus_core::layout::SplitDir::Horizontal,
+            dir: herdstead_core::layout::SplitDir::Horizontal,
         })
         .unwrap();
         conn.wait("two panes", |snapshot| snapshot.panes.len() == 2);
@@ -401,12 +401,12 @@ fn a_restored_session_keeps_its_layout() {
     assert!(saved.exists(), "the layout was saved");
 
     // Start a second daemon against the same state directory.
-    let child = Command::new(env!("CARGO_BIN_EXE_herdr-plus"))
+    let child = Command::new(env!("CARGO_BIN_EXE_herdstead"))
         .args(["--server", "--session", "it"])
         .current_dir(session.root.join("project"))
-        .env("HERDR_PLUS_CONFIG_DIR", session.root.join("config"))
-        .env("HERDR_PLUS_STATE_DIR", session.root.join("state"))
-        .env("HERDR_PLUS_RUNTIME_DIR", session.root.join("run"))
+        .env("HERDSTEAD_CONFIG_DIR", session.root.join("config"))
+        .env("HERDSTEAD_STATE_DIR", session.root.join("state"))
+        .env("HERDSTEAD_RUNTIME_DIR", session.root.join("run"))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

@@ -6,12 +6,12 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
-repository = "https://github.com/jaysonwu991/herdr-plus"
+repository = "https://github.com/jaysonwu991/herdstead"
 rust-version = "1.82"
 
 [workspace.dependencies]
-herdr-plus-core = { path = "crates/core" }
-herdr-plus-render = { path = "crates/render" }
+herdstead-core = { path = "crates/core" }
+herdstead-render = { path = "crates/render" }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -110,8 +110,8 @@ impl Config {
         let mut table = toml::Table::new();
         for path in [
             Some(paths.config_file()),
-            Some(project.join(".herdr-plus/config.toml")),
-            Some(project.join("herdr-plus.toml")),
+            Some(project.join(".herdstead/config.toml")),
+            Some(project.join("herdstead.toml")),
         ]
         .into_iter()
         .flatten()
@@ -163,7 +163,7 @@ impl Config {
         }
         if let Ok(prefix) = parse_binding(&self.keybind_prefix) {
             // The prefix key itself is matched by the client; keep it here so
-            // `herdr-plus keys` can print it.
+            // `herdstead keys` can print it.
             map.insert("prefix".to_string(), prefix);
         }
         for (action, spec) in &self.keybinds {
@@ -447,7 +447,7 @@ fn parse_key(name: &str) -> Option<Key> {
     })
 }
 
-/// Renders a binding back into a spec, for help and `herdr-plus keys`.
+/// Renders a binding back into a spec, for help and `herdstead keys`.
 pub fn format_binding(binding: &Binding) -> String {
     let mut parts = Vec::new();
     if binding.prefix {
@@ -579,19 +579,19 @@ mod tests {
 
     #[test]
     fn config_layers_project_over_global() {
-        let root = std::env::temp_dir().join(format!("herdr-plus-cfg-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-cfg-{}", std::process::id()));
         let config_dir = root.join("config");
-        let global = config_dir.join("herdr-plus");
+        let global = config_dir.join("herdstead");
         let project = root.join("project");
         std::fs::create_dir_all(&global).unwrap();
-        std::fs::create_dir_all(project.join(".herdr-plus")).unwrap();
+        std::fs::create_dir_all(project.join(".herdstead")).unwrap();
         std::fs::write(
             global.join("config.toml"),
             "theme = \"nord\"\nscrollback = 1000\n[keybinds]\nsplit-vertical = \"prefix+p\"\n",
         )
         .unwrap();
         std::fs::write(
-            project.join(".herdr-plus/config.toml"),
+            project.join(".herdstead/config.toml"),
             "theme = \"gruvbox\"\n[theme-colors]\naccent = \"#ff0000\"\n",
         )
         .unwrap();
@@ -613,11 +613,11 @@ mod tests {
 
     #[test]
     fn invalid_config_warns_instead_of_failing() {
-        let root = std::env::temp_dir().join(format!("herdr-plus-bad-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-bad-{}", std::process::id()));
         let project = root.join("project");
-        std::fs::create_dir_all(project.join(".herdr-plus")).unwrap();
+        std::fs::create_dir_all(project.join(".herdstead")).unwrap();
         std::fs::write(
-            project.join(".herdr-plus/config.toml"),
+            project.join(".herdstead/config.toml"),
             "scrollback = 10\n[keybinds]\nno-such-action = \"prefix+9\"\n[theme-colors]\nnope = \"#fff\"\n",
         )
         .unwrap();

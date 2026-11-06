@@ -1,7 +1,7 @@
 //! Turning plain text into clickable links: URLs, file paths and mentions.
 
-use herdr_plus_core::text;
-use herdr_plus_core::Theme;
+use herdstead_core::text;
+use herdstead_core::Theme;
 
 use crate::style::{Line, Link, Span, Style};
 

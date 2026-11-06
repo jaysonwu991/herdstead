@@ -1,6 +1,6 @@
 //! Encoding a key press for a pane, honouring its terminal modes.
 
-use herdr_plus_core::protocol::{Key, KeyInput, Mods};
+use herdstead_core::protocol::{Key, KeyInput, Mods};
 
 /// The bytes a pane expects for `input`.
 pub fn encode(input: &KeyInput, screen: &vt100::Screen) -> Vec<u8> {

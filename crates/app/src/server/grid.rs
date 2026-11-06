@@ -1,9 +1,7 @@
 //! Turning a vt100 screen into the grid a client draws.
 
-use herdr_plus_core::geom::Rect;
-use herdr_plus_core::protocol::{
-    CursorPos, GridFrame, StyledLine, StyledRun, TermColor, TermStyle,
-};
+use herdstead_core::geom::Rect;
+use herdstead_core::protocol::{CursorPos, GridFrame, StyledLine, StyledRun, TermColor, TermStyle};
 
 /// Converts the visible screen of `parser` for a pane occupying `rect`.
 pub fn frame(parser: &vt100::Parser, rect: Rect) -> GridFrame {
@@ -80,7 +78,7 @@ fn fit(mut frame: GridFrame, rect: Rect) -> GridFrame {
                 }
                 let mut text = String::new();
                 for ch in run.text.chars() {
-                    let ch_width = herdr_plus_core::text::char_width(ch);
+                    let ch_width = herdstead_core::text::char_width(ch);
                     if used + ch_width > usize::from(width) {
                         break;
                     }
@@ -218,7 +216,7 @@ mod tests {
         fn width_text(&self) -> usize {
             self.runs
                 .iter()
-                .map(|run| herdr_plus_core::text::display_width(&run.text))
+                .map(|run| herdstead_core::text::display_width(&run.text))
                 .sum()
         }
     }

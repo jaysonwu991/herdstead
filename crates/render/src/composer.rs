@@ -1,9 +1,9 @@
 //! The composer: a prompt line that renders inline Markdown, links, `@paths`
 //! and a live Markdown preview, the way Oxide's composer does.
 
-use herdr_plus_core::mention;
-use herdr_plus_core::text;
-use herdr_plus_core::Theme;
+use herdstead_core::mention;
+use herdstead_core::text;
+use herdstead_core::Theme;
 
 use crate::inline::parse_inline;
 use crate::link::mark_mention;

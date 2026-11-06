@@ -7,16 +7,16 @@ use std::time::{Duration, Instant};
 use crossterm::event::{
     KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
-use herdr_plus_core::config::{Binding, Config, LinkModifier};
-use herdr_plus_core::geom::{Dir, Rect};
-use herdr_plus_core::layout::SplitDir;
-use herdr_plus_core::mention;
-use herdr_plus_core::model::{PaneKind, Size, ViewerKind};
-use herdr_plus_core::protocol::{Action, Key, KeyInput, Mods, PaneFrame, Snapshot};
-use herdr_plus_core::text;
-use herdr_plus_core::Theme;
-use herdr_plus_render::markdown;
-use herdr_plus_render::{Line as RLine, Link};
+use herdstead_core::config::{Binding, Config, LinkModifier};
+use herdstead_core::geom::{Dir, Rect};
+use herdstead_core::layout::SplitDir;
+use herdstead_core::mention;
+use herdstead_core::model::{PaneKind, Size, ViewerKind};
+use herdstead_core::protocol::{Action, Key, KeyInput, Mods, PaneFrame, Snapshot};
+use herdstead_core::text;
+use herdstead_core::Theme;
+use herdstead_render::markdown;
+use herdstead_render::{Line as RLine, Link};
 
 use crate::tui::layout as ui_layout;
 use crate::tui::layout::Chrome;
@@ -70,7 +70,7 @@ pub struct Completion {
 /// A divider being dragged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Drag {
-    pub pane: herdr_plus_core::ids::PaneId,
+    pub pane: herdstead_core::ids::PaneId,
     pub dir: Dir,
     pub last: (u16, u16),
 }
@@ -96,8 +96,8 @@ pub struct App {
     pub prefix_armed: bool,
     pub quit: bool,
     pub detach_requested: bool,
-    pub viewer_scroll: BTreeMap<herdr_plus_core::ids::PaneId, usize>,
-    viewer_cache: HashMap<herdr_plus_core::ids::PaneId, ViewerCache>,
+    pub viewer_scroll: BTreeMap<herdstead_core::ids::PaneId, usize>,
+    viewer_cache: HashMap<herdstead_core::ids::PaneId, ViewerCache>,
     pub completion_entries: Vec<String>,
     pub completion_root: PathBuf,
     pub last_pane_area: Option<Rect>,
@@ -433,7 +433,7 @@ impl App {
 
     fn reload(&mut self) {
         let cwd = self.completion_root.clone();
-        let paths = herdr_plus_core::paths::Paths::discover();
+        let paths = herdstead_core::paths::Paths::discover();
         let (config, warnings) = Config::load(&cwd, &paths);
         self.theme = crate::load_theme(&None, &config, &paths);
         self.refresh_theme_list(Theme::catalog(&paths.themes_dir()));
@@ -1239,7 +1239,7 @@ impl App {
     }
 
     /// Scrolls a viewer pane; the runtime never sees this.
-    pub fn scroll_viewer(&mut self, pane: herdr_plus_core::ids::PaneId, delta: i32) {
+    pub fn scroll_viewer(&mut self, pane: herdstead_core::ids::PaneId, delta: i32) {
         let Some(frame) = self
             .snapshot
             .as_ref()
@@ -1307,14 +1307,14 @@ impl App {
         match pane.kind {
             PaneKind::Shell => {
                 let grid = pane.grid.as_ref()?;
-                let lines = herdr_plus_render::term::term_lines(grid, &self.theme);
+                let lines = herdstead_render::term::term_lines(grid, &self.theme);
                 if self.config.links {
                     let cwd = PathBuf::from(&pane.cwd);
                     Some(
                         lines
                             .into_iter()
                             .map(|line| {
-                                herdr_plus_render::link::decorate(
+                                herdstead_render::link::decorate(
                                     &line,
                                     &self.theme,
                                     &|path: &str| route_path(&cwd, path).exists(),
@@ -1346,7 +1346,7 @@ impl App {
                         .unwrap_or_else(|err| {
                             vec![RLine::styled(
                                 err,
-                                herdr_plus_render::Style::plain().fg(self.theme.error),
+                                herdstead_render::Style::plain().fg(self.theme.error),
                             )]
                         });
                     self.viewer_cache.insert(
@@ -1370,7 +1370,7 @@ impl App {
         }
     }
 
-    pub fn viewer_offset(&self, pane: herdr_plus_core::ids::PaneId) -> usize {
+    pub fn viewer_offset(&self, pane: herdstead_core::ids::PaneId) -> usize {
         self.viewer_scroll.get(&pane).copied().unwrap_or(0)
     }
 
@@ -1398,7 +1398,7 @@ impl App {
         if self.prefix_armed {
             return format!(
                 "prefix {} … (esc cancels)",
-                herdr_plus_core::config::format_binding(&self.prefix)
+                herdstead_core::config::format_binding(&self.prefix)
             );
         }
         if self.focus == Focus::Composer {
@@ -1412,7 +1412,7 @@ impl App {
         }
         format!(
             "{} prompt · prefix+? help",
-            herdr_plus_core::config::format_binding(&self.prefix)
+            herdstead_core::config::format_binding(&self.prefix)
         )
     }
 
@@ -1428,7 +1428,7 @@ impl App {
     /// The row the composer's caret sits on, for cursor placement.
     pub fn composer_layout(&self, width: usize) -> (Vec<RLine>, usize, usize) {
         let cwd = self.focused_cwd();
-        herdr_plus_render::composer::layout(
+        herdstead_render::composer::layout(
             &self.composer.text,
             self.composer.cursor,
             width,
@@ -1588,7 +1588,7 @@ pub fn key_input(key: &KeyEvent) -> KeyInput {
 }
 
 fn describe_key(input: &KeyInput) -> String {
-    herdr_plus_core::config::format_binding(&Binding {
+    herdstead_core::config::format_binding(&Binding {
         prefix: false,
         mods: input.mods,
         key: input.key,
@@ -1637,7 +1637,7 @@ fn shifted_digit(ch: char) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::config::{parse_binding, Config};
+    use herdstead_core::config::{parse_binding, Config};
 
     fn app() -> App {
         let themes = Theme::catalog(Path::new("/nonexistent"));
@@ -1705,7 +1705,7 @@ mod tests {
 
     #[test]
     fn composer_edits_send_and_complete_paths() {
-        let root = std::env::temp_dir().join(format!("herdr-plus-composer-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-composer-{}", std::process::id()));
         std::fs::create_dir_all(root.join("src")).unwrap();
         std::fs::write(root.join("src/main.rs"), "").unwrap();
         let mut app = app();
@@ -1761,7 +1761,7 @@ mod tests {
 
     #[test]
     fn completion_lists_folders_first_and_is_capped() {
-        let root = std::env::temp_dir().join(format!("herdr-plus-complete-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-complete-{}", std::process::id()));
         std::fs::create_dir_all(root.join("src/nested")).unwrap();
         std::fs::write(root.join("src/main.rs"), "").unwrap();
         std::fs::write(root.join("README.md"), "").unwrap();
@@ -1778,7 +1778,7 @@ mod tests {
     fn viewer_keys_scroll_and_close() {
         let mut app = app();
         let mut frame = PaneFrame {
-            id: herdr_plus_core::ids::PaneId(1),
+            id: herdstead_core::ids::PaneId(1),
             rect: Rect::new(0, 0, 20, 10),
             title: "README.md".into(),
             cwd: "/tmp".into(),
@@ -1786,7 +1786,7 @@ mod tests {
             kind: PaneKind::Viewer,
             viewer: None,
             agent: None,
-            status: herdr_plus_core::detect::PaneStatus::Idle,
+            status: herdstead_core::detect::PaneStatus::Idle,
             bell: false,
             exit_code: None,
             scroll: 0,

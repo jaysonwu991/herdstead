@@ -1,4 +1,4 @@
-//! Rich text rendering for herdr-plus: Markdown, syntax highlighting, folder
+//! Rich text rendering for herdstead: Markdown, syntax highlighting, folder
 //! trees, link decoration, the composer and ANSI output.
 //!
 //! Everything here is pure: renderers take text plus a [`Theme`] and return
@@ -18,7 +18,7 @@ pub mod wrap;
 
 pub use style::{Line, Link, Span, Style};
 
-use herdr_plus_core::Theme;
+use herdstead_core::Theme;
 
 /// Renders a file the way a viewer pane shows it: Markdown is rendered, other
 /// text is syntax-highlighted, and binary files report why they cannot open.
@@ -28,18 +28,18 @@ pub fn render_file(
     theme: &Theme,
     code_options: &code::CodeOptions,
 ) -> Result<Vec<Line>, String> {
-    let kind = herdr_plus_core::model::ViewerKind::for_path(path);
+    let kind = herdstead_core::model::ViewerKind::for_path(path);
     match kind {
-        herdr_plus_core::model::ViewerKind::Tree => Err(format!(
+        herdstead_core::model::ViewerKind::Tree => Err(format!(
             "{}: is a folder, open it as a tree",
             path.display()
         )),
-        herdr_plus_core::model::ViewerKind::Markdown => {
+        herdstead_core::model::ViewerKind::Markdown => {
             let source = std::fs::read_to_string(path)
                 .map_err(|err| format!("{}: {err}", path.display()))?;
             Ok(markdown::render_width(&source, width, theme))
         }
-        herdr_plus_core::model::ViewerKind::Code => code::highlight_file(
+        herdstead_core::model::ViewerKind::Code => code::highlight_file(
             path,
             &code::CodeOptions {
                 width,
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn renders_markdown_and_code_files() {
-        let root = std::env::temp_dir().join(format!("herdr-plus-render-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-render-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let md = root.join("README.md");
         std::fs::write(&md, "# Title\n\nbody **bold**").unwrap();

@@ -1,12 +1,12 @@
 [package]
-name = "herdr-plus-render"
+name = "herdstead-render"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Rich text renderers: markdown, syntax highlighting, folder trees"
 
 [dependencies]
-herdr-plus-core.workspace = true
+herdstead-core.workspace = true
 serde.workspace = true
 syntect.workspace = true
 two-face.workspace = true

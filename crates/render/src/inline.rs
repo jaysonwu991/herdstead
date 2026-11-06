@@ -1,8 +1,8 @@
 //! Markdown inline parsing: emphasis, code, links, bare URLs and `@mentions`.
 
 use crate::style::{Link, Span, Style};
-use herdr_plus_core::text::{self, find_urls};
-use herdr_plus_core::Theme;
+use herdstead_core::text::{self, find_urls};
+use herdstead_core::Theme;
 
 const MAX_DEPTH: usize = 6;
 
@@ -15,7 +15,7 @@ pub fn parse_inline(input: &str, base: Style, theme: &Theme) -> Vec<Span> {
 
 /// Plain spans with URL, path and mention links attached but no Markdown.
 pub fn linkify_text(input: &str, base: Style, theme: &Theme) -> Vec<Span> {
-    let mut hits: Vec<(std::ops::Range<usize>, Link, herdr_plus_core::theme::Rgb)> = Vec::new();
+    let mut hits: Vec<(std::ops::Range<usize>, Link, herdstead_core::theme::Rgb)> = Vec::new();
     for hit in find_urls(input) {
         hits.push((hit.span, Link::Url(hit.url), theme.link));
     }
@@ -30,7 +30,7 @@ pub fn linkify_text(input: &str, base: Style, theme: &Theme) -> Vec<Span> {
             theme.path,
         ));
     }
-    for range in herdr_plus_core::mention::mention_ranges(input) {
+    for range in herdstead_core::mention::mention_ranges(input) {
         let cleaned = text::clean_path(&input[range.clone()]);
         let (path, line, column) = text::split_location(&cleaned);
         if path.is_empty() {
@@ -99,6 +99,16 @@ fn parse_into(input: &str, base: Style, theme: &Theme, out: &mut Vec<Span>, dept
                 flush(&mut literal, base, out);
                 out.extend(spans.spans);
                 index += spans.consumed;
+                continue;
+            }
+        }
+
+        // ![alt](target)
+        if ch == '!' {
+            if let Some((consumed, span)) = take_image(rest, base, theme) {
+                flush(&mut literal, base, out);
+                out.push(span);
+                index += consumed;
                 continue;
             }
         }
@@ -274,6 +284,44 @@ fn take_link(rest: &str, base: Style, theme: &Theme) -> Option<(usize, Vec<Span>
     Some((close + 1 + target_end + 2, spans))
 }
 
+/// `![alt](target)` renders as a labelled placeholder that links to the
+/// image. Terminals cannot draw the bitmap, but the alt text and the path stay
+/// useful — and the target opens like any other link.
+fn take_image(rest: &str, base: Style, theme: &Theme) -> Option<(usize, Span)> {
+    let after_bang = rest.strip_prefix("![")?;
+    let close = after_bang.find(']')?;
+    let alt = &after_bang[..close];
+    let after = &after_bang[close + 1..];
+    let target = after.strip_prefix('(')?;
+    let target_end = target.find(')')?;
+    let target = target[..target_end].trim();
+    let label = if alt.trim().is_empty() {
+        text::basename(target).to_string()
+    } else {
+        alt.trim().to_string()
+    };
+    let link = if text::is_url(target) {
+        Link::Url(target.to_string())
+    } else {
+        let (path, line, column) = text::split_location(target);
+        Link::Path {
+            path: path.to_string(),
+            line,
+            column,
+        }
+    };
+    let style = base.fg(theme.muted).italic();
+    let text = format!("▧ {label}");
+    Some((
+        close + target_end + 5,
+        Span {
+            text,
+            style,
+            link: Some(link),
+        },
+    ))
+}
+
 fn take_autolink(rest: &str, base: Style, theme: &Theme) -> Option<(usize, Span)> {
     let close = rest.find('>')?;
     let target = &rest[1..close];
@@ -301,7 +349,7 @@ fn take_bare_url(rest: &str, base: Style, theme: &Theme) -> Option<Span> {
 }
 
 fn take_mention(rest: &str, base: Style, theme: &Theme) -> Option<Span> {
-    let ranges = herdr_plus_core::mention::mention_ranges(rest);
+    let ranges = herdstead_core::mention::mention_ranges(rest);
     let range = ranges.first()?;
     if range.start != 0 {
         return None;
@@ -344,7 +392,7 @@ fn find_closer(text: &str, delimiter: &str, underscore: bool) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::theme::Rgb;
+    use herdstead_core::theme::Rgb;
 
     fn theme() -> Theme {
         Theme::midnight()
@@ -448,6 +496,28 @@ mod tests {
             })
         );
         assert_eq!(linked[1].style.fg, Some(theme().mention));
+    }
+
+    #[test]
+    fn images_become_labelled_links() {
+        let spans = parse_inline("![The logo](assets/logo.svg)", Style::plain(), &theme());
+        assert_eq!(text_of(&spans), "▧ The logo");
+        assert_eq!(
+            spans[0].link,
+            Some(Link::Path {
+                path: "assets/logo.svg".into(),
+                line: None,
+                column: None
+            })
+        );
+
+        let spans = parse_inline("![](https://x.dev/a.png)", Style::plain(), &theme());
+        assert_eq!(text_of(&spans), "▧ a.png");
+        assert_eq!(spans[0].link, Some(Link::Url("https://x.dev/a.png".into())));
+
+        // A lone exclamation mark is prose.
+        let spans = parse_inline("wow! really", Style::plain(), &theme());
+        assert_eq!(text_of(&spans), "wow! really");
     }
 
     #[test]

@@ -17,12 +17,12 @@ use crossterm::event::{
     Event as CrosstermEvent, KeyEventKind,
 };
 use crossterm::{execute, terminal};
-use herdr_plus_core::config::Config;
-use herdr_plus_core::geom::Rect;
-use herdr_plus_core::model::Size;
-use herdr_plus_core::paths::Paths;
-use herdr_plus_core::protocol::{decode_line, encode_line, Action, Event, Request};
-use herdr_plus_core::Theme;
+use herdstead_core::config::Config;
+use herdstead_core::geom::Rect;
+use herdstead_core::model::Size;
+use herdstead_core::paths::Paths;
+use herdstead_core::protocol::{decode_line, encode_line, Action, Event, Request};
+use herdstead_core::Theme;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
@@ -65,7 +65,7 @@ fn attach_and_run(
     if !app.warnings.is_empty() {
         let count = app.warnings.len();
         app.set_status(format!(
-            "{count} configuration warning(s) — `herdr-plus config` shows them"
+            "{count} configuration warning(s) — `herdstead config` shows them"
         ));
     }
     let chrome = layout::chrome(app.screen, &app.chrome_state());
@@ -253,10 +253,10 @@ fn spawn_reader(stream: UnixStream, tx: mpsc::Sender<AppEvent>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use herdr_plus_core::detect::PaneStatus;
-    use herdr_plus_core::ids::PaneId;
-    use herdr_plus_core::model::PaneKind;
-    use herdr_plus_core::protocol::{
+    use herdstead_core::detect::PaneStatus;
+    use herdstead_core::ids::PaneId;
+    use herdstead_core::model::PaneKind;
+    use herdstead_core::protocol::{
         GridFrame, PaneFrame, Snapshot, StyledLine, StyledRun, TabView, TermStyle, WorkspaceView,
     };
     use ratatui::backend::TestBackend;
@@ -266,7 +266,7 @@ mod tests {
         let themes = Theme::catalog(std::path::Path::new("/nonexistent"));
         let theme = themes[0].clone();
         let mut app = App::new(
-            "herdr-plus".into(),
+            "herdstead".into(),
             config,
             theme,
             themes,
@@ -304,20 +304,20 @@ mod tests {
             ],
         );
         app.handle(AppEvent::Snapshot(Box::new(Snapshot {
-            session: "herdr-plus".into(),
+            session: "herdstead".into(),
             version: "0.1.0".into(),
             seq: 3,
             size: Size { rows: 26, cols: 90 },
             area,
             workspaces: vec![WorkspaceView {
-                id: herdr_plus_core::ids::WorkspaceId(1),
-                name: "herdr-plus".into(),
+                id: herdstead_core::ids::WorkspaceId(1),
+                name: "herdstead".into(),
                 dir: "/tmp/project".into(),
                 status: PaneStatus::Working,
                 panes: 1,
                 agent: None,
                 tabs: vec![TabView {
-                    id: herdr_plus_core::ids::TabId(1),
+                    id: herdstead_core::ids::TabId(1),
                     name: "shell".into(),
                     status: PaneStatus::Working,
                     panes: 1,
@@ -368,7 +368,7 @@ mod tests {
     fn draws_the_tab_bar_sidebar_panes_and_status() {
         let mut app = demo_app();
         let text = buffer_text(&mut app);
-        assert!(text.contains("herdr-plus"), "{text}");
+        assert!(text.contains("herdstead"), "{text}");
         assert!(text.contains("shell"), "{text}");
         assert!(text.contains("WORKSPACES"), "{text}");
         assert!(text.contains("PANES"), "{text}");
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn viewer_panes_draw_file_content() {
         let mut app = demo_app();
-        let root = std::env::temp_dir().join(format!("herdr-plus-ui-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("herdstead-ui-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let path = root.join("README.md");
         std::fs::write(&path, "# Herdr Plus\n\nrender **markdown** here").unwrap();
@@ -419,9 +419,9 @@ mod tests {
             cwd: root.display().to_string(),
             command: String::new(),
             kind: PaneKind::Viewer,
-            viewer: Some(herdr_plus_core::model::ViewerSpec {
+            viewer: Some(herdstead_core::model::ViewerSpec {
                 path: path.clone(),
-                kind: herdr_plus_core::model::ViewerKind::Markdown,
+                kind: herdstead_core::model::ViewerKind::Markdown,
             }),
             agent: None,
             status: PaneStatus::Idle,

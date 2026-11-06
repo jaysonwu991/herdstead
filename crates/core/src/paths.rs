@@ -1,4 +1,4 @@
-//! Where herdr-plus keeps configuration, themes, persistence and sockets.
+//! Where herdstead keeps configuration, themes, persistence and sockets.
 
 use std::path::{Path, PathBuf};
 
@@ -17,12 +17,12 @@ impl Default for Paths {
 }
 
 impl Paths {
-    /// Honours `HERDR_PLUS_*` first, then the XDG variables and their usual
+    /// Honours `HERDSTEAD_*` first, then the XDG variables and their usual
     /// fallbacks, on every platform — an explicit, predictable layout:
     ///
-    /// - config: `$XDG_CONFIG_HOME/herdr-plus` (default `~/.config/herdr-plus`)
-    /// - state:  `$XDG_STATE_HOME/herdr-plus` (default `~/.local/state/herdr-plus`)
-    /// - runtime: `$XDG_RUNTIME_DIR/herdr-plus` (default `/tmp/herdr-plus-<uid>`)
+    /// - config: `$XDG_CONFIG_HOME/herdstead` (default `~/.config/herdstead`)
+    /// - state:  `$XDG_STATE_HOME/herdstead` (default `~/.local/state/herdstead`)
+    /// - runtime: `$XDG_RUNTIME_DIR/herdstead` (default `/tmp/herdstead-<uid>`)
     pub fn discover() -> Self {
         Self::from_env(|key| std::env::var_os(key))
     }
@@ -31,9 +31,9 @@ impl Paths {
     pub fn from_env(get: impl Fn(&str) -> Option<std::ffi::OsString>) -> Self {
         let home = get("HOME").map(PathBuf::from);
         let join = |base: Option<PathBuf>, fallback: Option<PathBuf>| {
-            base.or(fallback).map(|dir| dir.join("herdr-plus"))
+            base.or(fallback).map(|dir| dir.join("herdstead"))
         };
-        let config = get("HERDR_PLUS_CONFIG_DIR")
+        let config = get("HERDSTEAD_CONFIG_DIR")
             .map(PathBuf::from)
             .or_else(|| {
                 join(
@@ -41,8 +41,8 @@ impl Paths {
                     home.as_ref().map(|home| home.join(".config")),
                 )
             })
-            .unwrap_or_else(|| PathBuf::from(".herdr-plus"));
-        let state = get("HERDR_PLUS_STATE_DIR")
+            .unwrap_or_else(|| PathBuf::from(".herdstead"));
+        let state = get("HERDSTEAD_STATE_DIR")
             .map(PathBuf::from)
             .or_else(|| {
                 join(
@@ -51,12 +51,12 @@ impl Paths {
                 )
             })
             .unwrap_or_else(|| config.join("state"));
-        let runtime = get("HERDR_PLUS_RUNTIME_DIR")
+        let runtime = get("HERDSTEAD_RUNTIME_DIR")
             .map(PathBuf::from)
             .or_else(|| join(get("XDG_RUNTIME_DIR").map(PathBuf::from), None))
             .unwrap_or_else(|| {
                 let uid = current_uid();
-                std::env::temp_dir().join(format!("herdr-plus-{uid}"))
+                std::env::temp_dir().join(format!("herdstead-{uid}"))
             });
         Self {
             config,
@@ -211,11 +211,11 @@ pub fn default_session_name(cwd: &Path) -> String {
         .unwrap_or_else(|| "main".to_string())
 }
 
-pub const DEFAULT_CONFIG: &str = r##"# herdr-plus configuration
+pub const DEFAULT_CONFIG: &str = r##"# herdstead configuration
 # Reload with `prefix+r` (or restart the session) after editing.
 
 # Theme: midnight, daylight, nord, gruvbox, mono, solarized,
-# or a name from ~/.config/herdr-plus/themes/<name>.json
+# or a name from ~/.config/herdstead/themes/<name>.json
 theme = "midnight"
 
 # Shell started for a new pane. Defaults to $SHELL.
@@ -248,7 +248,7 @@ tree-max-entries = 4000
 keybind-prefix = "ctrl+b"
 
 # Override any keybinding, e.g. `split-vertical = "prefix+|"`.
-# Run `herdr-plus keys` for the full list.
+# Run `herdstead keys` for the full list.
 [keybinds]
 
 [theme-colors]
@@ -287,12 +287,12 @@ mod tests {
             "XDG_RUNTIME_DIR" => Some("/run/user/501".into()),
             _ => None,
         });
-        assert_eq!(paths.config, PathBuf::from("/cfg/herdr-plus"));
+        assert_eq!(paths.config, PathBuf::from("/cfg/herdstead"));
         assert_eq!(
             paths.state,
-            PathBuf::from("/home/me/.local/state/herdr-plus")
+            PathBuf::from("/home/me/.local/state/herdstead")
         );
-        assert_eq!(paths.runtime, PathBuf::from("/run/user/501/herdr-plus"));
+        assert_eq!(paths.runtime, PathBuf::from("/run/user/501/herdstead"));
     }
 
     #[test]
@@ -301,22 +301,22 @@ mod tests {
             "HOME" => Some("/home/me".into()),
             _ => None,
         });
-        assert_eq!(paths.config, PathBuf::from("/home/me/.config/herdr-plus"));
+        assert_eq!(paths.config, PathBuf::from("/home/me/.config/herdstead"));
         assert_eq!(
             paths.state,
-            PathBuf::from("/home/me/.local/state/herdr-plus")
+            PathBuf::from("/home/me/.local/state/herdstead")
         );
         assert!(paths
             .runtime
-            .ends_with(format!("herdr-plus-{}", current_uid())));
+            .ends_with(format!("herdstead-{}", current_uid())));
     }
 
     #[test]
-    fn herdr_plus_variables_win_over_xdg() {
+    fn herdstead_variables_win_over_xdg() {
         let paths = Paths::from_env(|key| match key {
-            "HERDR_PLUS_CONFIG_DIR" => Some("/c".into()),
-            "HERDR_PLUS_STATE_DIR" => Some("/s".into()),
-            "HERDR_PLUS_RUNTIME_DIR" => Some("/r".into()),
+            "HERDSTEAD_CONFIG_DIR" => Some("/c".into()),
+            "HERDSTEAD_STATE_DIR" => Some("/s".into()),
+            "HERDSTEAD_RUNTIME_DIR" => Some("/r".into()),
             "HOME" => Some("/home/me".into()),
             "XDG_CONFIG_HOME" => Some("/cfg".into()),
             _ => None,
@@ -329,14 +329,14 @@ mod tests {
     #[test]
     fn an_explicit_runtime_dir_is_used_as_given() {
         // The env override is an exact directory, not a parent to join onto.
-        // (Regression: it used to become `<dir>/herdr-plus`.)
+        // (Regression: it used to become `<dir>/herdstead`.)
         let paths = Paths::with_roots("/c", "/s", "/r");
         assert_eq!(paths.socket("main"), PathBuf::from("/r/main.sock"));
     }
 
     #[test]
     fn sanitised_socket_paths_stay_short() {
-        let paths = Paths::with_roots("/c", "/s", "/tmp/herdr-plus-501");
+        let paths = Paths::with_roots("/c", "/s", "/tmp/herdstead-501");
         let long = "x".repeat(200);
         assert!(paths.socket(&long).as_os_str().len() < 100);
     }
@@ -344,8 +344,8 @@ mod tests {
     #[test]
     fn default_session_name_uses_the_folder() {
         assert_eq!(
-            default_session_name(Path::new("/Users/me/herdr-plus")),
-            "herdr-plus"
+            default_session_name(Path::new("/Users/me/herdstead")),
+            "herdstead"
         );
         assert_eq!(default_session_name(Path::new("/")), "main");
     }
