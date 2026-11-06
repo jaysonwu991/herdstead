@@ -155,14 +155,22 @@ template: |
 
   ## Install
 
-  Build from source (macOS or Linux, Rust 1.82+):
+  Prebuilt binaries for macOS (arm64 and x64) and Linux (x64 and arm64) are
+  attached below, each with a `.sha256`:
+
+  ```sh
+  asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64
+  base=https://github.com/$OWNER/$REPOSITORY/releases/download/$RESOLVED_TAG
+  curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"
+  shasum -a 256 -c "$asset.sha256"        # sha256sum -c on Linux
+  tar -xzf "$asset" && sudo mv herdstead /usr/local/bin/
+  ```
+
+  Or build from source (macOS or Linux, Rust 1.82+):
 
   ```sh
   cargo install --git https://github.com/$OWNER/$REPOSITORY.git herdstead
   ```
-
-  Releases are source-only; `cargo test --workspace` is what CI runs on macOS
-  and Linux for every change.
 
   **Full documentation:** [README](https://github.com/$OWNER/$REPOSITORY#readme) ·
   [docs](https://github.com/$OWNER/$REPOSITORY/tree/main/docs)

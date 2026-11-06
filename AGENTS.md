@@ -62,6 +62,8 @@ ones that prove it — unit tests are not enough.
 - A new action is not done until the keymap defaults, the server handler, the
   client dispatch and `docs/keys.md` agree.
 - Keep the docs' stated test commands and file paths true.
+- A release is not done until the drafter's install block, `release.yml`, the
+  README and `docs/getting-started.md` name the same platforms.
 - Do not commit `target/`, editor state, or a user's real config/state folders.
 
 ## Things not to do

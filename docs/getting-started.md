@@ -2,7 +2,19 @@
 
 ## Install
 
-Straight from the repository (macOS or Linux, Rust 1.82 or newer):
+Prebuilt binaries are attached to every
+[release](https://github.com/jaysonwu991/herdstead/releases): pick the archive
+for your platform and check it against the `.sha256` beside it.
+
+```bash
+asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64
+base=https://github.com/jaysonwu991/herdstead/releases/latest/download
+curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"
+shasum -a 256 -c "$asset.sha256"        # sha256sum -c on Linux
+tar -xzf "$asset" && sudo mv herdstead /usr/local/bin/
+```
+
+Or straight from the repository (macOS or Linux, Rust 1.82 or newer):
 
 ```bash
 cargo install --git https://github.com/jaysonwu991/herdstead.git herdstead
