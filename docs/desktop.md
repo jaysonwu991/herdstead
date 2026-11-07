@@ -56,6 +56,11 @@ key and its optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, then run `pnpm run bu
 The public key in `tauri.conf.json` must match. These update signatures are
 separate from Apple Developer ID signing and notarisation.
 
+The macOS DMG opens a compact installer window with Herdstead on the left and
+Applications on the right. Release builds set `TAURI_BUNDLER_DMG_IGNORE_CI=true`
+so Tauri saves this Finder layout even in CI; otherwise the DMG opens with
+Finder's default window size and icon arrangement.
+
 ## The shell and rich terminal
 
 The terminal is the input surface. There is no separate desktop composer.
