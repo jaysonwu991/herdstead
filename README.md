@@ -31,7 +31,8 @@ Open **Appearance → Check for updates**, then **Install update and restart**.
 Updates are signed and verified before installation. Linux in-app updates use
 the AppImage; Debian installations update by installing a newer `.deb`.
 macOS packages are not currently Apple Developer ID signed or notarised; see
-[troubleshooting](docs/troubleshooting.md) for first launch.
+[first-launch troubleshooting](docs/troubleshooting.md#first-launch-on-macos)
+if macOS reports that Herdstead.app is damaged or blocks opening it.
 
 ## Use a workspace
 
