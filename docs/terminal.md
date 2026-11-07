@@ -6,6 +6,11 @@ provide split, zoom and close buttons. Drag a divider to resize, click a pane to
 focus it, and use the sidebar to select workspaces. Use **+** beside Workspaces
 to pick a project folder.
 
+The cursor blinks while the terminal has keyboard focus and becomes an outline
+when focus moves elsewhere. Reduced-motion preferences keep the active cursor
+solid. Terminal controls return keyboard focus to the shell; search fields and
+dialogs keep focus while you use them.
+
 Scroll over a pane for daemon-owned history. Click the scroll offset to return
 to live output. Viewers scroll locally. Find searches the visible output, not
 the complete scrollback. Closing a pane stops its process; closing the app

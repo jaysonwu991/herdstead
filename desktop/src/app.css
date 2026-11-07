@@ -15,3 +15,10 @@ dialog{background:var(--panel);color:var(--fg);border:1px solid var(--border);bo
 #font-family{width:205px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px;font-size:11px}
 
 .rows{position:relative;margin-left:var(--cell-width)}.terminal-row{position:relative}.term-link{position:relative}.link-logo{position:absolute;top:0;width:var(--cell-width);height:var(--line-height);color:var(--link);background:var(--bg);stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none;user-select:none;cursor:pointer;z-index:1}
+
+/* Only the terminal receiving keyboard input shows an active caret. */
+.cursor{opacity:1}
+.pane.focused .cursor{animation:terminal-cursor-blink 1s step-end infinite}
+body:not(.terminal-focused) .pane .cursor,.pane:not(.focused) .cursor{animation:none;background:transparent;border:1px solid var(--muted)}
+@keyframes terminal-cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.pane.focused .cursor{animation:none}}

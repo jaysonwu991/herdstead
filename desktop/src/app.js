@@ -23,11 +23,17 @@ async function request(message) {
 }
 // Event handlers report errors once, without leaking unhandled rejections.
 function safely(fn) { return (...args) => { try { return Promise.resolve(fn(...args)).catch(() => {}); } catch (error) { showError(error.message); } }; }
-function on(selector, name, fn) { $(selector).addEventListener(name, safely(fn)); }
+function on(selector, name, fn) {
+  const node = $(selector);
+  node.addEventListener(name, safely(async (...args) => {
+    await fn(...args);
+    if (name === 'click' && node.tagName === 'BUTTON') restoreTerminalFocus();
+  }));
+}
 function button(text, title, fn, className = '') {
   const node = document.createElement('button');
   node.textContent = text; node.title = title; node.className = className;
-  node.addEventListener('click', safely(fn)); return node;
+  node.addEventListener('click', safely(async event => { await fn(event); restoreTerminalFocus(); })); return node;
 }
 function el(tag, className, text) {
   const node = document.createElement(tag); if (className) node.className = className;
@@ -51,7 +57,18 @@ function showError(message) {
 }
 function focused() { return state.snapshot?.panes.find(p => p.id === state.snapshot.focused); }
 function workspace() { return state.snapshot?.workspaces[state.snapshot.active_workspace]; }
-function terminalFocus() { if (!$('#palette').open && !$('#settings').open) $('#terminal-input').focus({ preventScroll: true }); }
+function terminalFocus() { if (!document.querySelector('dialog[open]')) $('#terminal-input').focus({ preventScroll: true }); }
+function restoreTerminalFocus() {
+  const active = document.activeElement;
+  if (active === document.body || active?.tagName === 'BUTTON') terminalFocus();
+}
+function updateInputFocus() {
+  document.body.classList.toggle('terminal-focused', document.hasFocus() && document.activeElement === $('#terminal-input'));
+}
+document.addEventListener('focusin', updateInputFocus);
+document.addEventListener('focusout', () => queueMicrotask(updateInputFocus));
+window.addEventListener('blur', updateInputFocus);
+window.addEventListener('focus', () => { restoreTerminalFocus(); updateInputFocus(); });
 function colorStatus(status) { return status === 'working' ? 'var(--accent)' : status === 'error' ? 'var(--error)' : 'var(--success)'; }
 function applyPalette(palette) {
   for (const [slot, value] of Object.entries(palette)) document.documentElement.style.setProperty(`--${slot}`, value);
@@ -119,7 +136,7 @@ function renderChrome() {
     const close = el('span', 'close-tab', '×'); close.title = `Close ${tab.name}`;
     close.addEventListener('click', safely(async event => {
       event.stopPropagation();
-      await action({ type: 'select_tab', index }); await action({ type: 'close_tab' });
+      await action({ type: 'select_tab', index }); await action({ type: 'close_tab' }); terminalFocus();
     }));
     node.append(el('span', '', '❯_'), el('span', '', tab.name), close); tabs.append(node);
   });
@@ -408,6 +425,7 @@ async function rename(kind) {
   const submit = el('button', 'primary', 'Rename'); submit.type = 'submit'; form.append(submit); dialog.append(form); document.body.append(dialog);
   dialog.addEventListener('close', safely(async () => { const name = input.value.trim(); if (dialog.returnValue !== 'cancel' && name) await action({ type: `rename_${kind}`, name }); dialog.remove(); }));
   dialog.addEventListener('cancel', () => { dialog.returnValue = 'cancel'; });
+  dialog.addEventListener('close', restoreTerminalFocus);
   dialog.showModal(); input.focus(); input.select();
 }
 function receive(event) {
@@ -480,6 +498,7 @@ on('#files-button', 'click', toggleFiles); on('#refresh-files', 'click', () => {
 on('#file-filter', 'input', renderFiles); on('#rich-output-button', 'click', toggleRich);
 on('#find-button', 'click', openFind); on('#find-input', 'input', find); on('#find-close', 'click', closeFind);
 on('#settings-button', 'click', settings); on('#close-settings', 'click', () => $('#settings').close());
+for (const dialog of ['#palette', '#settings']) on(dialog, 'close', restoreTerminalFocus);
 on('#theme-select', 'change', event => setTheme(event.target.value));
 on('#font-family', 'change', event => { state.fontFamily = event.target.value; localStorage.setItem('fontFamily', state.fontFamily); fontSize(); });
 on('#font-smaller', 'click', () => fontSize(-1)); on('#font-larger', 'click', () => fontSize(1));
