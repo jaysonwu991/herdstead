@@ -13,8 +13,11 @@ in agreement. For the user-facing picture, start at [README.md](README.md) and
 - macOS or Linux. Windows is not supported: the daemon and client talk over a
   Unix socket, and the integration tests spawn PTYs.
 
-No system libraries are needed. Syntax highlighting and PTY handling are pure
+For the terminal binary, no system libraries are needed. Syntax highlighting and PTY handling are pure
 Rust.
+
+The optional Tauri desktop app has separate prerequisites and checks in
+[Desktop](docs/desktop.md).
 
 ## Getting started
 
@@ -57,6 +60,8 @@ clean up after themselves, so they do not touch your real session.
 | `crates/render` | Markdown, syntax highlighting, trees, link decoration, the composer, ANSI output |
 | `crates/app/src/server` | the daemon: PTY panes, grid extraction, key encoding, snapshots |
 | `crates/app/src/tui` | the client: state, chrome layout, drawing, viewers |
+| `desktop/` | Tauri native host, static desktop UI, packaging and desktop integration tests |
+| `crates/app/src/desktop.rs` | desktop transport over the existing daemon client |
 | `crates/app/src/cli.rs` | the non-interactive commands |
 | `crates/app/tests` | the daemon and PTY end-to-end tests |
 | `docs/` | user documentation |

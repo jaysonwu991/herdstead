@@ -4,7 +4,8 @@
 
 **A terminal workspace manager for coding agents — a homestead for your herd.**
 
-One Rust binary. Panes, tabs and workspaces that survive a detach, plus a
+A Rust terminal workspace with an optional **Tauri desktop app**. Panes, tabs
+and workspaces that survive a detach, plus a
 terminal that recognises links, themes, Markdown, `@path` references,
 syntax-highlighted files and folder trees.
 
@@ -91,6 +92,23 @@ seconds and produces a 5 MB binary with no runtime dependencies.
 Attaching needs an interactive terminal. Run from a pipe or a script,
 `herdstead` refuses before it starts a session and points at the
 non-interactive commands instead; those work anywhere.
+
+## Desktop app
+
+The Tauri desktop client adds native workspace controls, split terminals, a file
+explorer and a zsh terminal with inline Markdown, `@path` completion, highlighted
+file reads and folder trees. It loads your existing Starship/Oh My Zsh setup and
+shares persistent sessions with the TUI. Input stays in the terminal.
+
+```sh
+cd desktop
+npm ci
+npm run dev
+```
+
+Requires Node.js, a current Rust toolchain and the Tauri system prerequisites.
+See [Desktop](docs/desktop.md) for native builds, controls and verification.
+The curl installer above installs the terminal binary.
 
 ## Quick start
 
@@ -395,8 +413,9 @@ Crates:
 ## Tests
 
 ```bash
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo clippy --workspace --all-targets
 sh scripts/test-install.sh
 ```
 

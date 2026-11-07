@@ -25,6 +25,123 @@ pub fn term_lines(frame: &GridFrame, theme: &Theme) -> Vec<Line> {
         .collect()
 }
 
+/// Rich ordinary output without changing terminal row coordinates. The live
+/// input row, wrapped rows, ANSI-styled output and alternate screen stay raw.
+pub fn rich_lines(frame: &GridFrame, theme: &Theme) -> Vec<Line> {
+    let mut lines = term_lines(frame, theme);
+    if frame.alt_screen {
+        return lines;
+    }
+    let eligible = |row: usize| {
+        let line = &frame.lines[row];
+        !line.wrapped
+            && (row == 0 || !frame.lines[row - 1].wrapped)
+            && frame
+                .cursor
+                .is_none_or(|cursor| row != usize::from(cursor.row))
+            && line.runs.iter().all(|run| run.style.is_plain())
+    };
+    let mut row = 0;
+    while row < frame.lines.len() {
+        if !eligible(row) {
+            row += 1;
+            continue;
+        }
+        let source = frame.lines[row].text();
+        let trimmed = source.trim_start();
+        if let Some((marker, language)) = fence(trimmed) {
+            let start = row + 1;
+            let mut end = start;
+            while end < frame.lines.len()
+                && eligible(end)
+                && !frame.lines[end].text().trim_start().starts_with(marker)
+            {
+                end += 1;
+            }
+            let body = frame.lines[start..end]
+                .iter()
+                .map(StyledLine::text)
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n";
+            let options = crate::code::CodeOptions {
+                width: usize::from(frame.cols),
+                line_numbers: false,
+                background: false,
+                max_lines: end - start,
+                ..Default::default()
+            };
+            let highlighted =
+                crate::code::highlight_snippet(Some(language), &body, &options, theme);
+            for (target, line) in lines[start..end].iter_mut().zip(highlighted) {
+                *target = line;
+            }
+            lines[row] = Line::styled(
+                format!("╭─ {language}"),
+                Style::plain().fg(theme.code_border),
+            );
+            if end < frame.lines.len()
+                && eligible(end)
+                && frame.lines[end].text().trim_start().starts_with(marker)
+            {
+                lines[end] = Line::styled("╰─", Style::plain().fg(theme.code_border));
+                row = end + 1;
+            } else {
+                row = end;
+            }
+        } else {
+            let heading = trimmed.starts_with('#')
+                && trimmed.chars().take_while(|ch| *ch == '#').count() <= 6
+                && trimmed.trim_start_matches('#').starts_with(' ');
+            if heading
+                || trimmed.starts_with("- ")
+                || trimmed.starts_with("* ")
+                || trimmed.starts_with("> ")
+            {
+                if let Some(line) =
+                    crate::markdown::render_width(&source, usize::from(frame.cols), theme)
+                        .into_iter()
+                        .find(|line| !line.is_blank())
+                {
+                    lines[row] = line;
+                }
+            } else if source.contains("**")
+                || source.contains("__")
+                || source.matches('`').count() >= 2
+                || (source.contains("](") && source.contains('['))
+            {
+                lines[row] = Line {
+                    spans: crate::inline::parse_inline(&source, Style::plain(), theme),
+                };
+            }
+            row += 1;
+        }
+    }
+    for line in &mut lines {
+        line.truncate(usize::from(frame.cols), false);
+    }
+    lines
+}
+
+fn fence(text: &str) -> Option<(&str, &str)> {
+    let marker = if text.starts_with("```") {
+        "```"
+    } else if text.starts_with("~~~") {
+        "~~~"
+    } else {
+        return None;
+    };
+    let language = text[3..].trim();
+    if language
+        .chars()
+        .all(|ch| ch.is_alphanumeric() || "_+-#".contains(ch))
+    {
+        Some((marker, language))
+    } else {
+        None
+    }
+}
+
 pub fn term_style(style: &herdstead_core::protocol::TermStyle, theme: &Theme) -> Style {
     let mut out = Style::plain().fg(theme.resolve(style.fg));
     if !matches!(style.bg, herdstead_core::protocol::TermColor::Default) {
@@ -72,6 +189,75 @@ fn trim_trailing_space(line: &mut Line) {
 mod tests {
     use super::*;
     use herdstead_core::protocol::{StyledLine, StyledRun, TermColor, TermStyle};
+
+    #[test]
+    fn rich_output_formats_markdown_and_code_without_moving_input() {
+        let source = [
+            "# Heading",
+            "**bold** and `code`",
+            "```rust",
+            "fn main() {}",
+            "```",
+            "$ echo **literal**",
+        ];
+        let mut frame = GridFrame::plain(
+            6,
+            60,
+            source
+                .iter()
+                .map(|text| StyledLine {
+                    runs: vec![run(text, TermStyle::default())],
+                    wrapped: false,
+                })
+                .collect(),
+        );
+        frame.cursor = Some(herdstead_core::protocol::CursorPos { row: 5, col: 18 });
+        let rows = rich_lines(&frame, &Theme::midnight());
+        assert_eq!(rows.len(), source.len());
+        assert!(rows[0].text().contains("Heading"));
+        assert!(!rows[1].text().contains("**"));
+        assert!(rows[1].spans.iter().any(|span| span.style.bold));
+        assert_eq!(rows[3].text().trim_end(), "fn main() {}");
+        assert!(rows[3].spans.iter().any(|span| span.style.fg.is_some()));
+        assert_eq!(rows[5].text(), source[5]);
+        frame.alt_screen = true;
+        assert_eq!(
+            rich_lines(&frame, &Theme::midnight()),
+            term_lines(&frame, &Theme::midnight())
+        );
+    }
+
+    #[test]
+    fn rich_output_preserves_ansi_and_soft_wrapped_rows() {
+        let frame = GridFrame::plain(
+            3,
+            30,
+            vec![
+                StyledLine {
+                    runs: vec![run(
+                        "**styled**",
+                        TermStyle {
+                            bold: true,
+                            ..Default::default()
+                        },
+                    )],
+                    wrapped: false,
+                },
+                StyledLine {
+                    runs: vec![run("**wrapped**", TermStyle::default())],
+                    wrapped: true,
+                },
+                StyledLine {
+                    runs: vec![run("**continuation**", TermStyle::default())],
+                    wrapped: false,
+                },
+            ],
+        );
+        assert_eq!(
+            rich_lines(&frame, &Theme::midnight()),
+            term_lines(&frame, &Theme::midnight())
+        );
+    }
 
     fn run(text: &str, style: TermStyle) -> StyledRun {
         StyledRun {

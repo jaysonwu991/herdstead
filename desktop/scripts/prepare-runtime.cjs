@@ -1,0 +1,13 @@
+const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.resolve(__dirname, '../..');
+const args = ['build', '--release', '--locked', '--manifest-path', path.join(root, 'Cargo.toml')];
+if (process.env.CARGO_BUILD_TARGET) args.push('--target', process.env.CARGO_BUILD_TARGET);
+execFileSync(process.env.CARGO || 'cargo', args, { stdio: 'inherit', cwd: root });
+const targetDir = process.env.CARGO_TARGET_DIR || path.join(root, 'target');
+const binary = path.join(targetDir, process.env.CARGO_BUILD_TARGET || '', 'release/herdstead');
+const destination = path.join(root, 'desktop/src-tauri/binaries');
+fs.mkdirSync(destination, { recursive: true });
+fs.copyFileSync(binary, path.join(destination, 'herdstead'));
+fs.chmodSync(path.join(destination, 'herdstead'), 0o755);

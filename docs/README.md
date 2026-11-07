@@ -10,6 +10,7 @@ whatever you are trying to do.
 
 | page | what it covers |
 |---|---|
+| [Desktop](desktop.md) | Tauri app, zsh, native builds, rich terminal features and desktop shortcuts |
 | [Getting started](getting-started.md) | install, first session, the layout, the first five minutes |
 | [Sessions](sessions.md) | the daemon, detach and reattach, restore, listing and stopping sessions, agent status |
 | [Panes, tabs, workspaces](terminal.md) | splits, focus, zoom, scrollback, the mouse, links in output |

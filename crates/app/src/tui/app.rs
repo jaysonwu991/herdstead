@@ -1345,7 +1345,7 @@ impl App {
         match pane.kind {
             PaneKind::Shell => {
                 let grid = pane.grid.as_ref()?;
-                let lines = herdstead_render::term::term_lines(grid, &self.theme);
+                let lines = herdstead_render::term::rich_lines(grid, &self.theme);
                 if self.config.links {
                     let cwd = PathBuf::from(&pane.cwd);
                     Some(
