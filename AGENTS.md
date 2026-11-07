@@ -6,10 +6,8 @@ your task before changing behaviour.
 
 ## What this is
 
-herdstead is a terminal workspace manager for coding agents, in Rust. One binary
-with a TUI client and a session daemon that owns the panes. An optional Tauri
-desktop app uses the same daemon through a JSON bridge. macOS and Linux only,
-over a Unix socket.
+herdstead is a Tauri desktop workspace for coding agents, with a bundled Rust
+runtime and shell helpers. macOS and Linux only, over a Unix socket.
 
 Three crates:
 
@@ -17,7 +15,8 @@ Three crates:
   `@path`, text scanning. No terminal dependency.
 - `crates/render` — Markdown, syntax highlighting, trees, links, composer, ANSI.
   Drawing is pure; file helpers and tree scanning perform IO.
-- `crates/app` — the daemon (`src/server`), the client (`src/tui`) and the CLI.
+- `crates/app` — daemon, desktop JSON bridge, viewers and bundled shell helpers.
+- `desktop/` — Tauri native host and webview UI (separate Cargo workspace).
 
 ## Invariants
 
@@ -48,7 +47,8 @@ cargo test --workspace
 ```
 
 `crates/app/tests/runtime.rs` starts real daemons over a Unix socket in a
-temporary state directory; `crates/app/tests/client.rs` runs the TUI in a PTY.
+temporary state directory; `desktop/tests` drives the bridge, real zsh PTYs
+and browser UI.
 They need no display and clean up after
 themselves, but an interrupted run can leave a session behind. To inspect or
 stop it, set `HERDSTEAD_CONFIG_DIR`, `HERDSTEAD_STATE_DIR` and
@@ -58,10 +58,10 @@ own session directories and will not list isolated test sessions. If a change
 touches keys, the composer, layout, viewers or the socket, the end-to-end tests are the
 ones that prove it — unit tests are not enough.
 
-`install.sh` has its own check, offline against fixture archives:
+Desktop host and browser checks are in `docs/desktop.md`. Release packaging checks:
 
 ```sh
-sh scripts/test-install.sh
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 ## Conventions
@@ -75,8 +75,8 @@ sh scripts/test-install.sh
   client dispatch and `docs/keys.md` agree.
 - Keep the docs' stated test commands and file paths true.
 - A release is not done until the drafter's install block, `release.yml`,
-  `install.sh`, the README and `docs/getting-started.md` name the same platforms
-  and the same install path.
+  Tauri config, the README and `docs/getting-started.md` name the same platforms
+  and desktop installers.
 - Do not commit `target/`, editor state, or a user's real config/state folders.
 
 ## Things not to do

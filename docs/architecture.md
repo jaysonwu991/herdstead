@@ -1,45 +1,24 @@
 # Architecture
 
-herdstead is one binary with two roles. `herdstead` is a client: it draws a
-session and sends intents. `herdstead --server` is the runtime: it owns the
-panes, the processes, the layout and focus. The boundary between them is the
-design, and it is the reason detaching works.
+Herdstead is a Tauri desktop app with a bundled Rust runtime. The native host
+starts a JSON bridge; the bridge connects to a persistent session daemon over a
+Unix socket. The daemon owns panes, processes, layout, focus and scrollback.
+The webview owns presentation. There is no standalone interactive TUI.
 
 ```mermaid
-flowchart TB
-    subgraph daemon["session daemon — the runtime"]
-        layout["pane tree + ratios<br/>(core::layout)"]
-        state["SessionState<br/>workspaces · tabs · panes"]
-        pty["PanePty per pane<br/>PTY · vt100 · writer"]
-        detect["agent + status<br/>(core::detect)"]
-        snap["Snapshot builder"]
-        layout --> snap
-        state --> snap
-        pty --> snap
-        detect --> snap
-        pty --> detect
-    end
-
-    subgraph client["TUI client — presentation"]
-        input["input thread<br/>keys · mouse · paste · resize"]
-        keymap["keymap + composer<br/>(tui::app)"]
-        chrome["chrome layout<br/>(tui::layout)"]
-        render["renderers<br/>markdown · code · tree · links"]
-        draw["draw loop<br/>(tui::ui)"]
-        input --> keymap
-        keymap --> chrome
-        keymap --> render
-        chrome --> draw
-        render --> draw
-    end
-
-    keymap -- "Action frames" --> daemon
-    snap -- "Snapshot frames" --> keymap
+flowchart LR
+    UI[desktop webview] --> HOST[Tauri host]
+    HOST --> BRIDGE[JSON bridge]
+    BRIDGE --> DAEMON[Unix session daemon]
+    DAEMON --> PTY[pane PTYs]
+    PTY --> DAEMON
+    DAEMON --> BRIDGE
+    BRIDGE --> UI
 ```
 
 **Runtime facts** — panes, their trees, split ratios, focus, scrollback offsets,
 working folders, agent status — live in the daemon. **Presentation** — theme,
-composer text and caret, completion, overlays, viewer scroll, the pointer — never
+input decoration, overlays, viewer scroll, the pointer — never
 leaves the client. This mirrors the guidance herdr sets out, and it keeps the
 protocol small: an action either changes the session or it does not exist.
 
@@ -49,12 +28,12 @@ protocol small: an action either changes the session or it does not exist.
 |---|---|---|
 | `herdstead-core` | geometry, pane tree, session model, protocol types, themes, config, agent detection, `@path` parsing, text and link scanning | serde, toml |
 | `herdstead-render` | Markdown, syntax highlighting, trees, link decoration, the composer, ANSI output | syntect, two-face |
-| `herdstead` (binary) | daemon, client, CLI | ratatui, crossterm, portable-pty, vt100, the two crates above |
+| `herdstead` (bundled binary) | daemon, desktop bridge, shell helpers | crossterm, portable-pty, vt100, the two crates above |
 
 Drawing functions are pure: text plus a `Theme` in, styled rows out.
 `code::highlight_file`, `render_file`, `render_path` and `tree::scan` perform file
 IO; clients choose when to invoke them.
-The TUI maps those rows into a ratatui buffer; the CLI maps them into ANSI. That
+The desktop maps those rows into webview spans; shell helpers map them into ANSI. That
 is why files, Markdown pages and trees share rendering behaviour in panes and
 `herdstead cat`/`md`/`tree`.
 
@@ -81,7 +60,7 @@ is why files, Markdown pages and trees share rendering behaviour in panes and
 | `render::term` | terminal runs → styled rows |
 | `render::composer`, `render::ansi` | composer decoration/layout; ANSI output |
 | `server` | runtime, PTY panes, grid extraction, key encoding |
-| `tui` | client state, chrome layout, drawing, viewers |
+| `desktop`, `viewer` | bridge, client rendering and viewer IO |
 
 ## The protocol
 
@@ -232,28 +211,11 @@ Running processes and their output are not restored.
 
 ## The client
 
-Three threads: the draw loop (16 ms), an input thread (crossterm events), and a
-socket reader that turns frames into snapshots. The draw loop drains events,
-applies them, sends any actions, and renders the latest snapshot.
-
-- **Chrome layout** (`tui::layout`) splits the screen into tab strip, sidebar,
-  panes, composer and status bar, and it is used both to draw and to hit-test —
-  a click cannot land on a different row than the one painted.
-- **The keymap** is a `BTreeMap<action, binding>` built from the config. The
-  prefix is matched first; while a prefix is armed the next key is looked up, and
-  digits select tabs/workspaces. When the composer has focus it takes every key.
-- **The composer** keeps text, caret, completion and preview state, and resolves
-  `@path` references against the focused pane's folder before sending.
-- **Viewers** render on the client from the file, cached for 750 ms per pane and
-  width, which keeps a large file cheap while still noticing edits.
-- **Links** are computed when a pane is drawn: scan the text, keep paths that
-  resolve, attach the target to the characters. Hit-testing re-renders the pane
-  at its width, so the link under the pointer is the one that was drawn.
-
-The client asks for a re-layout whenever its chrome changes size, sending the new
-pane area with the action; the runtime treats that area as authoritative. A
-terminal resize therefore reaches the PTYs through the same path as opening the
-composer preview does.
+`desktop/src` renders snapshots, translates keys and paste into semantic actions,
+and measures the terminal font to send cell geometry to the daemon. Viewer
+scroll, appearance, rich-output preference and file panel state stay local.
+`crates/app/src/viewer.rs` loads viewer files and uses the shared renderers.
+The bundled runtime also provides ANSI shell commands from those same renderers.
 
 ## Testing
 
@@ -262,7 +224,8 @@ composer preview does.
 | unit tests in `core` | geometry, splits, closing, focus, resize, themes, config layering, binding syntax, mention parsing, link scanning |
 | unit tests in `render` | exact columns, links surviving wrapping, table alignment, image placeholders, code gutters, tree scanning, ANSI output |
 | `crates/app/tests/runtime.rs` | a real daemon: shell output, typed keys, splits, scrollback, viewer panes, kill, restart-restore, error frames |
-| `crates/app/tests/client.rs` | the real TUI in a PTY: drawn chrome, prefix splits verified through the socket, the composer, `@path` completion, Markdown preview, viewer panes, detach/reattach, resize, and the non-TTY guard |
+| `desktop/tests` | real daemon bridge, zsh integration, terminal rendering and browser E2E |
+| `scripts/test_desktop_release.py` | installer completeness, signed manifest assembly, checksums and version stamping |
 
 The end-to-end tests spawn the built binary and talk to it the way a user does,
 which is why a regression in the socket protocol or in key encoding fails a test
@@ -270,7 +233,7 @@ rather than surfacing as a silent mis-render.
 
 ## Desktop client
 
-`desktop/` is an optional Tauri 2 application with an independent Cargo workspace
+`desktop/` is the Tauri 2 application with an independent Cargo workspace
 in `desktop/src-tauri`. It embeds the static client from `desktop/src` in the
 system webview and bundles the ordinary `herdstead` binary as a resource. The
 native host starts `herdstead desktop-bridge` with piped stdin/stdout. That process
@@ -297,7 +260,7 @@ app stops its bridge; the independent daemon keeps the PTYs alive.
 
 The page measures the terminal font and translates available pixels into a cell
 area. The daemon remains authoritative for layout, focus and PTY sizes. Semantic
-keys, input-method text and bracketed paste use the same actions as the TUI.
+keys, input-method text and bracketed paste use semantic runtime actions.
 Themes, rich-output preference, viewer scroll, panel visibility and fonts remain
 client-side. Terminal rows are updated only when their spans change, structural
 chrome is keyed separately, resize events are debounced, and viewer reads are
@@ -315,7 +278,7 @@ arguments, preserving quoted prose and shell syntax. Existing prompt hooks and
 non-reference completion stay active. The daemon still owns only the PTY and
 runtime facts; no command-line buffer or presentation field enters the protocol.
 
-`render::term::rich_lines` is pure and shared by desktop and TUI. It interprets
+`render::term::rich_lines` is pure and used by the desktop bridge. It interprets
 plain Markdown output a row at a time and highlights fenced code with the shared
 syntax engine. It preserves row count and leaves the cursor row, soft-wrapped
 content, already styled output and alternate-screen applications out of block
@@ -331,3 +294,21 @@ Links are scanned across style runs so a URL interrupted by ZLE or Markdown
 colour changes still carries one complete target. The desktop serialises badge
 offsets into existing blank cells or the gutter; local SVG logos are presentation
 only and add no text or PTY columns. Alternate-screen applications are excluded.
+
+## Desktop distribution and updates
+
+The release workflow builds the runtime and Tauri host for macOS arm64/x64 and
+Linux arm64/x64. `CARGO_BUILD_TARGET` keeps the bundled runtime on the same target
+as the app. Version stamping covers both Cargo manifests, npm metadata and Tauri
+configuration. Native installers are DMGs, AppImages and Debian packages.
+`scripts/desktop-release.py` stages stable platform names and refuses to publish
+until every installer and updater signature exists. It assembles `latest.json`
+with darwin/linux architecture keys and publishes `SHA256SUMS`.
+
+The native host registers Tauri's updater plugin. `check_update` caches the
+candidate update; `install_update` consumes it, downloads and verifies its
+signature, installs it, stops the bridge and restarts the app. Daemons remain
+running. The page only exposes explicit check/install buttons and status text.
+The public updater key is committed in Tauri config; its private half is a
+GitHub Actions secret. No protocol fields are added for updater presentation.
+Apple code signing/notarisation is separate from updater signatures.

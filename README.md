@@ -2,474 +2,98 @@
 
 # herdstead
 
-**A terminal workspace manager for coding agents — a homestead for your herd.**
+**A desktop workspace for coding agents — a homestead for your herd.**
 
-A Rust terminal workspace with an optional **Tauri desktop app**. Panes, tabs
-and workspaces that survive a detach, plus a
-terminal that recognises links, themes, Markdown, `@path` references,
-syntax-highlighted files and folder trees.
+Herdstead is a Tauri desktop app for macOS and Linux. Keep agents running in
+persistent terminal panes, tabs and workspaces, with rich Markdown, clickable
+links, shell `@path` completion, highlighted files and folder trees.
 
 [![CI](https://github.com/jaysonwu991/herdstead/actions/workflows/ci.yml/badge.svg)](https://github.com/jaysonwu991/herdstead/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-666666.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.82%2B-666666.svg)](Cargo.toml)
 
-[**Documentation**](docs/README.md) · [getting started](docs/getting-started.md) ·
-[sessions](docs/sessions.md) · [composer](docs/composer.md) ·
-[viewers](docs/viewers.md) · [themes](docs/themes.md) ·
-[configuration](docs/configuration.md) · [desktop](docs/desktop.md) · [keys](docs/keys.md) ·
-[architecture](docs/architecture.md) · [troubleshooting](docs/troubleshooting.md)
-· [brand](docs/brand.md)
+## Download and install
 
----
+Download an installer from [Releases](https://github.com/jaysonwu991/herdstead/releases/latest):
 
-## Why
+| computer | installer | installation |
+|---|---|---|
+| macOS Apple Silicon | `Herdstead-macos-arm64.dmg` | open and drag Herdstead into Applications |
+| macOS Intel | `Herdstead-macos-x64.dmg` | open and drag Herdstead into Applications |
+| Linux x64 | `Herdstead-linux-x64.AppImage` or `.deb` | make the AppImage executable and run it, or install the Debian package |
+| Linux arm64 | `Herdstead-linux-arm64.AppImage` or `.deb` | make the AppImage executable and run it, or install the Debian package |
 
-[herdr](https://github.com/herdrdev/herdr) established the shape: a runtime your
-coding agents live on, with panes you split, tabs you switch and a session you
-detach from and reattach to without stopping the work. `herdstead` keeps that
-shape and adds what a modern agent terminal needs to stay readable: the kind of
-rendering you expect from a desktop chat composer, available inside the
-terminal.
+The app includes its session runtime and shell helpers. No separate CLI install
+is needed. Windows is not supported because the session runtime uses Unix sockets.
+Linux requires glibc and the system webview; see [getting started](docs/getting-started.md).
+Downloads include `SHA256SUMS` for verification.
 
-| | herdstead |
-|---|---|
-| panes, tabs, workspaces, detach/attach | yes |
-| session restored after a restart | yes (`restore = true`) |
-| terminal output | full VT screen per pane, truecolour, scrollback |
-| links | URLs and file paths are detected, clickable, and emitted as OSC 8 |
-| themes | six built-ins plus JSON themes and per-slot overrides |
-| Markdown | composer preview, `/md`, `herdstead md`, and viewer panes |
-| `@path` | completion, existence-checked colouring, click to open |
-| `cat` | syntax highlighted like an editor (`herdstead cat`) |
-| folder trees | `herdstead tree`, `/tree`, and tree viewer panes |
+Open **Appearance → Check for updates**, then **Install update and restart**.
+Updates are signed and verified before installation. Linux in-app updates use
+the AppImage; Debian installations update by installing a newer `.deb`.
+macOS packages are not currently Apple Developer ID signed or notarised; see
+[troubleshooting](docs/troubleshooting.md) for first launch.
 
-## Install
+## Use a workspace
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/jaysonwu991/herdstead/main/install.sh | sh
-```
+Launch Herdstead and use **+** beside Workspaces to choose your project folder.
+Start your coding agent in a terminal. Split panes with Cmd/Ctrl+D, open a tab
+with Cmd/Ctrl+T, and find all commands with Cmd/Ctrl+Shift+P. Closing the window
+leaves the session's shells running; reopening reconnects to the session.
 
-The script asks `uname` what this machine is, downloads the matching archive,
-checks it against the `.sha256` the release publishes beside it when available,
-and installs `herdstead` into `~/.local/bin` — no `sudo`, and it names the folder if that is
-not on your `PATH`. macOS (arm64 and x64) and Linux (x64 and arm64) are the
-platforms it knows; a musl system (Alpine) is refused rather than handed a
-glibc binary. `HERDSTEAD_INSTALL_DIR=/usr/local/bin` puts it elsewhere,
-`HERDSTEAD_VERSION=v0.1.1` pins a release instead of taking the latest, and
-`sh install.sh --help` lists the rest.
+The terminal loads your zsh startup files, Starship and Oh My Zsh configuration.
+Type `@` for path completion. Use `cat README.md` for rendered Markdown,
+`cat src/main.rs` for highlighted code, and `tree .` for a directory tree.
+Existing aliases and piped `cat` commands retain their normal behaviour.
 
-To fetch an archive by hand instead — every
-[release](https://github.com/jaysonwu991/herdstead/releases) carries one per
-platform, each with a `.sha256` beside it:
+Choose a theme and terminal font in **Appearance**. The bundled JetBrains Mono Nerd Font includes prompt symbols. Click files in the explorer to open a viewer; use
+Cmd/Ctrl-click for links in terminal text. **Rich output** toggles Markdown
+interpretation without changing the terminal's bytes or row coordinates.
 
-```bash
-asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64
-base=https://github.com/jaysonwu991/herdstead/releases/latest/download
-curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"
-shasum -a 256 -c "$asset.sha256"        # sha256sum -c on Linux
-tar -xzf "$asset" && sudo mv herdstead /usr/local/bin/
-```
+[Documentation](docs/README.md) · [Desktop controls](docs/desktop.md) ·
+[Configuration](docs/configuration.md) · [Architecture](docs/architecture.md)
 
-Or build it yourself:
+## Build from source
 
-```bash
-cargo install --git https://github.com/jaysonwu991/herdstead.git herdstead
-```
-
-That puts `herdstead` in `~/.cargo/bin`. To hack on it instead:
-
-```bash
-git clone https://github.com/jaysonwu991/herdstead.git
-cd herdstead
-cargo build --release          # target/release/herdstead
-# or: cargo install --path crates/app
-```
-
-Requires a recent Rust toolchain (1.82 or newer). macOS and Linux (the client
-and daemon talk over a Unix socket). Build time and binary size depend on the
-toolchain and machine. The terminal binary requires no desktop libraries;
-prebuilt Linux binaries require glibc.
-
-Attaching needs an interactive terminal. Run from a pipe or a script,
-`herdstead` refuses before it starts a session and points at the
-non-interactive commands instead; those work anywhere.
-
-## Desktop app
-
-The Tauri desktop client adds native workspace controls, split terminals, a file
-explorer and a zsh terminal with inline Markdown, `@path` completion, highlighted
-file reads and folder trees. It loads your existing Starship/Oh My Zsh setup and
-shares persistent sessions with the TUI. Input stays in the terminal.
+Install a current stable Rust toolchain, Node.js 22 and the
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
+Linux also needs zsh for the rich shell integration.
 
 ```sh
-cd desktop
+git clone https://github.com/jaysonwu991/herdstead.git
+cd herdstead/desktop
 npm ci
 npm run dev
+# Local app, without signed updater artifacts:
+npm run build -- --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
-Requires Node.js, a current Rust toolchain and the Tauri system prerequisites.
-See [Desktop](docs/desktop.md) for native builds, controls and verification.
-The curl installer above installs the terminal binary.
+Release CI builds native installers for all four supported platforms and signs
+update artifacts. See [Contributing](CONTRIBUTING.md) for verification and release setup.
+The standalone TUI and curl installer have been retired; the Rust executable is
+a bundled runtime and shell helper.
 
-## Quick start
+## Development checks
 
-```bash
-herdstead                 # start or attach to a session named after the folder
-herdstead -s work         # a named session
-```
-
-Then:
-
-- type in the pane like any terminal; `ctrl+b` is the prefix for everything else
-- `ctrl+b :` opens the **composer** — a prompt line for the focused agent
-- `ctrl+b v` / `ctrl+b s` split the pane side by side / stacked
-- `ctrl+b q` detaches; `herdstead` reattaches with the panes still running
-- `ctrl+b ?` lists every binding
-
-```
- ┌ tab strip ──────────────────────────────────────────────────────── ctrl+b ┐
- │ ▦ herdstead  1 shell ●  2 tests ○                                         │
- ├──────────────┬────────────────────────────────────────────────────────────┤
- │ herdstead   │ ┌ ✳ claude ● ────────────────────────────────────────────┐  │
- │              │ │ ✓ cargo test — all green                               │  │
- │ WORKSPACES   │ │ see https://herdr.dev/docs and src/main.rs             │  │
- │  ● herdstead│ │ @crates/render/src/markdown.rs                        │  │
- │  ○ oxide     │ └────────────────────────────────────────────────────────┘  │
- │              │ ┌ tree src ───────────────────────────────────────────────┐  │
- │ TABS         │ │ src/            42 files · 6 folders                    │  │
- │    ● shell   │ │ ├─ main.rs                              1.2 KB         │  │
- │    ○ tests   │ │ └─ render/                                              │  │
- │              │ │    └─ markdown.rs                       18.4 KB        │  │
- │ PANES        │ └────────────────────────────────────────────────────────┘  │
- │    ● claude  │                                                            │
- ├──────────────┴────────────────────────────────────────────────────────────┤
- │ ❯ ctrl+b : prompt the agent · @path opens a file or folder · / commands   │
- │ herdstead ~/proj  working claude          midnight · ctrl+b prompt · ?   │
- └───────────────────────────────────────────────────────────────────────────┘
-```
-
-## The six features
-
-### 1. Links are recognised
-
-Terminal output is scanned for URLs and file paths on every frame. A URL is
-styled in the theme's link colour and underlined; a path only becomes a link
-when it exists relative to the pane's working directory, so prose that merely
-looks like a path never turns into one.
-
-- **Open one:** hold the link modifier (Cmd on macOS, configurable) and click.
-  URLs go to the browser; paths open in a viewer pane — a folder becomes a tree,
-  Markdown renders, everything else is highlighted.
-- **Without a mouse:** `herdstead md` and `herdstead tree` emit OSC 8 hyperlinks
-  for their rendered links, which supporting terminals can open.
-- **Hover feedback:** the status bar names the target under the pointer.
-
-More: [panes and output](docs/terminal.md), [viewers](docs/viewers.md).
-
-### 2. Themes
-
-Six built-in palettes, all truecolour:
-
-| theme | appearance | syntax theme |
-|---|---|---|
-| `midnight` (default) | dark | base16-ocean.dark |
-| `daylight` | light | base16-ocean.light |
-| `nord` | dark | Nord |
-| `gruvbox` | dark | gruvbox-dark |
-| `mono` | dark | ansi |
-| `solarized` | light | Solarized (light) |
-
-- `ctrl+b t` opens a live-preview theme menu.
-- `herdstead --theme nord`, `HERDSTEAD_THEME=nord`, or `theme = "nord"` in the
-  config.
-- `/theme nord` from the composer.
-- Custom themes are JSON files in `~/.config/herdstead/themes/`:
-
-```json
-{
-  "name": "plum",
-  "extends": "nord",
-  "colors": { "accent": "#ff00aa", "link": "#7de3ff", "tree_dir": "#ff00aa" }
-}
-```
-
-- `theme-colors` in the config overrides individual slots without a file.
-- The same palette drives the interface, Markdown, syntax highlighting and ANSI
-  output, so `herdstead cat` matches what the pane shows.
-
-More: [themes](docs/themes.md).
-
-### 3. Markdown
-
-- **Live preview in the composer.** `ctrl+b m` opens the composer with the
-  Markdown preview on; `ctrl+p` toggles it while typing. The preview renders
-  headings, lists, task lists, quotes, tables, rules, links and fenced code
-  (highlighted with the active theme).
-- **As a viewer pane.** `/md README.md` (or clicking a `.md` path) opens a
-  rendered Markdown pane beside the agent. Viewers scroll with `j`/`k`, `g`/`G`.
-- **In the terminal.** `herdstead md README.md` renders to stdout anywhere;
-  `herdstead md -` or `herdstead render` renders a pipe:
-
-```bash
-cat README.md | herdstead render
-```
-
-More: [the composer](docs/composer.md), [viewers](docs/viewers.md).
-
-### 4. `@path` references
-
-The composer completes file and folder references as you type:
-
-- type `@` and the current pane's folder is scanned (build output skipped);
-  `↑`/`↓` move, `Tab`/`Enter` accepts
-- folders complete with a trailing `/`, paths with spaces are quoted
-  automatically
-- `@src/lib.rs#L12-L14` keeps the location suffix out of the path
-- a reference that does not exist is drawn in the theme's error colour, so a
-  typo is visible before you send
-- send with `Enter`; the prompt goes to the focused agent pane
-
-Terminal panes and Markdown viewers recognise the same reference syntax, so a
-reference in the transcript can be clickable too.
-
-More: [the composer](docs/composer.md).
-
-### 5. `cat`, highlighted like an editor
-
-```bash
-herdstead cat crates/render/src/markdown.rs
-herdstead cat Cargo.toml --no-line-numbers
-```
-
-- 213 languages via [bat](https://github.com/sharkdp/bat)'s syntax set
-  (bundled through `two-face`), including TOML, TypeScript and Dockerfiles that
-  syntect's defaults miss
-- line numbers and tabs expanded to four spaces; viewer panes also add a rail
-- theme-matched colours, including a monochrome mode
-- up to 5000 lines, with long lines clipped at 500 columns in `herdstead cat`
-- `herdstead languages` lists what is supported
-
-More: [viewers](docs/viewers.md).
-
-### 6. Folder trees
-
-```bash
-herdstead tree                    # the current folder
-herdstead tree crates --depth 3
-herdstead tree . --all            # include target/, node_modules/, .git/
-```
-
-- folders first, then files, each with a size
-- box-drawing guides, colour by kind (folder, file, executable, symlink)
-- depth and entry caps that bound the displayed tree
-- in a session: `/tree crates` or `ctrl+b shift+e` opens a tree pane; clicking a
-  folder in a pane opens it as a tree. Viewer panes reuse the same renderer, so
-  the CLI and the TUI share the drawing functions
-
-More: [viewers](docs/viewers.md).
-
-## Sessions
-
-The daemon owns the panes; the client is a view. Closing the terminal, losing
-SSH, or `ctrl+b q` leaves the shells and agents running.
-
-```bash
-herdstead ls                  # live sessions and their pane counts
-herdstead kill work           # stop a session, keeping its saved layout
-herdstead kill work --forget  # stop it and delete the layout
-```
-
-- sessions live under `$XDG_RUNTIME_DIR/herdstead/<name>.sock` (or
-  `/tmp/herdstead-<uid>/`), one daemon per session
-- the layout is saved to `$XDG_STATE_HOME/herdstead/sessions/<name>.json`, so
-  with `restore = true` the next start re-creates every pane in its folder
-- panes report their folder through OSC 7, which the new-pane and viewer paths
-  use as their base
-- a daemon's log is at `$XDG_STATE_HOME/herdstead/logs/<name>.log`
-
-More: [sessions](docs/sessions.md).
-
-## Keys
-
-`ctrl+b` is the prefix unless `keybind-prefix` says otherwise.
-
-| key | action |
-|---|---|
-| `prefix+v` / `prefix+s` | split side by side / stacked |
-| `prefix+x` | close the focused pane |
-| `prefix+h` `j` `k` `l` | focus left / down / up / right |
-| `prefix+o` / `prefix+i` | focus next / previous pane |
-| `prefix+z` | zoom the focused pane |
-| `prefix+c` / `prefix+w` | new tab / close tab |
-| `prefix+n` / `prefix+p` | next / previous tab |
-| `prefix+1`…`9` | go to a tab |
-| `prefix+shift+n` | new workspace |
-| `prefix+[` / `prefix+]` | previous / next workspace |
-| `prefix+shift+1`…`9` | go to a workspace |
-| `prefix+:` | open the composer |
-| `prefix+t` | theme menu |
-| `prefix+m` | Markdown preview |
-| `prefix+e` / `prefix+shift+e` | open a file / a folder tree |
-| `prefix+\|` | show or hide the sidebar |
-| `prefix+r` | reload config and theme |
-| `prefix+q` | detach |
-| `prefix+?` | keybinding help |
-| `prefix+pgup` / `pgdn` / `home` / `end` | scroll the pane |
-| `super+click` | open the link or path under the pointer |
-
-Mouse: click to focus, drag a divider to resize, scroll to move through
-scrollback (or a viewer), click a tab, workspace or pane in the sidebar.
-
-Composer keys: `Enter` sends, `Shift+Enter` inserts a newline, `Tab` accepts a
-completion, `Ctrl+P` toggles the preview, `Ctrl+A/E/K/U/W` edit the line, `Esc`
-closes. The composer also takes commands:
-
-```
-/split [h]      /close        /tab [dir]     /workspace    /select <n>
-/theme <name>   /open <path>  /tree [path]   /cat <file>   /md <file>
-/rename-tab     /rename-workspace            /scroll-top   /scroll-bottom
-/help           /detach
-```
-
-Everything under `[keybinds]` can be rebound:
-
-```toml
-[keybinds]
-split-vertical = "prefix+|"
-close-pane = "prefix+shift+q"
-```
-
-## Configuration
-
-`herdstead init` writes `~/.config/herdstead/config.toml`; a project can add
-`.herdstead/config.toml` (or `herdstead.toml`) which layers over it.
-`herdstead config` prints the resolved result.
-
-```toml
-theme = "midnight"
-# shell = "/bin/zsh"         # optional; otherwise use $SHELL, then /bin/sh
-scrollback = 5000
-links = true
-link-modifier = "super"      # super | ctrl | alt
-mouse = true
-sidebar = true
-sidebar-width = 28
-# Open the composer with the Markdown preview already on.
-composer-markdown-preview = false
-status-bar = true
-restore = true
-tree-ignores = ["target", "node_modules", ".git", "dist", "build", ".venv"]
-tree-max-entries = 4000
-keybind-prefix = "ctrl+b"
-
-[keybinds]
-[theme-colors]
-accent = "#8b5cf6"
-```
-
-| environment variable | meaning |
-|---|---|
-| `HERDSTEAD_SESSION` | default session name |
-| `HERDSTEAD_THEME` | theme name |
-| `HERDSTEAD_CONFIG_DIR` | config root (themes live in `themes/`) |
-| `HERDSTEAD_STATE_DIR` | saved layouts and logs |
-| `HERDSTEAD_RUNTIME_DIR` | sockets |
-
-## How it works
-
-```mermaid
-flowchart LR
-    subgraph runtime["session daemon (one per session)"]
-        PTY[pane PTYs] --> VT[vt100 screens]
-        VT --> SNAP[snapshot builder]
-        DETECT[agent + status detection] --> SNAP
-        LAYOUT[pane tree + geometry] --> SNAP
-        SAVE[(layout JSON)]
-    end
-    SNAP -- "JSON frames over a Unix socket" --> CLIENT
-    subgraph client["TUI client"]
-        CLIENT[input + keymap] --> STATE[client state<br/>theme · composer · overlays · viewer scroll]
-        STATE --> DRAW[tab strip · sidebar · panes · composer]
-        RENDER[renderers<br/>markdown · code · tree · links] --> DRAW
-    end
-    CLIENT -- "actions: keys, splits, resize, viewers" --> runtime
-```
-
-The split follows herdr's guidance: **runtime facts** (panes, layout, focus,
-scrollback, agent status) live in the daemon, while **presentation** (theme,
-composer text, viewer scroll, overlays) never leaves the client. Each snapshot
-contains the complete visible session, so a new client can draw it without
-replaying earlier updates.
-
-Crates:
-
-- `crates/core` — layout, session model, protocol, themes, agent detection,
-  `@path` parsing, text utilities. No terminal dependency.
-- `crates/render` — Markdown, syntax highlighting, trees, link decoration, the
-  composer, ANSI output. Drawing functions are pure; file loading and tree
-  scanning perform IO. The TUI, desktop and CLI share the drawing functions.
-- `crates/app` — the daemon (`server/`), the TUI client (`tui/`) and the CLI.
-
-## Tests
-
-```bash
+```sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-sh scripts/test-install.sh
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-- unit tests for layout geometry, panes, themes, mention parsing, Markdown,
-  highlighting, trees, wrapping and link decoration
-- render tests that assert exact columns, links surviving a wrap, table
-  alignment, and image placeholders
-- `crates/app/tests/runtime.rs` drives a real daemon: a shell pane, typed keys, splits,
-  scrollback, viewer panes, kill, restart and layout restore
-- `crates/app/tests/client.rs` drives the real TUI in a PTY: the drawn chrome, prefix
-  splits, the composer, `@path` completion, Markdown preview, viewer panes,
-  detach and reattach, resizing, and the non-TTY guard
-- `scripts/test-install.sh` runs `install.sh` against fixture archives with no
-  network: platform detection, a pinned release, a mismatched checksum, a
-  missing archive and an unsupported machine
+Desktop host checks and browser integration tests are described in
+[Desktop](docs/desktop.md#verification).
 
 ## Limitations
 
-- macOS and Linux only: the daemon and client talk over a Unix socket.
-- Mouse events are used by the interface; they are not forwarded to programs
-  inside a pane, so apps that need mouse input (some scrollbars, htop's mouse)
-  will not see it.
-- One layout per session: the most recently attached client's size wins, so two
-  clients of very different sizes will re-layout for each other.
-- Viewer panes read files on the client, so a session attached from another
-  machine (not supported yet) would need that file locally.
-- Scrollback is a fixed number of rows (`scrollback`, default 5000).
+Sessions and scrollback are local. Saved layouts restore fresh processes after
+a daemon restart; they do not restore process memory or past terminal output.
+One session has one layout, so multiple windows with different sizes resize it
+for one another. Mouse reporting is reserved for the desktop controls, selection
+and scrollback. File viewers require UTF-8 and refuse files over 4 MiB.
 
-## Name and mark
+## Name and licence
 
-`herdstead` is a coinage: **herd** + **stead** — a homestead for a herd. The
-mark is a stead whose window is a pane grid, with one pane lit for the agent
-that has focus; the amber is the hearth. Assets live in `assets/`:
-
-| file | use |
-|---|---|
-| `logo.svg` | horizontal lockup, dark backgrounds |
-| `logo-light.svg` | horizontal lockup, light backgrounds |
-| `logo-mark.svg` | square mark, app icon and avatar |
-| `logo-mark-mono.svg` | single-ink mark, print and one-colour use |
-
-Palette: ink `#10161F`, mist `#D7DCE5`, hearth `#F0A64A` (and `#A6620F` for the
-tagline on light backgrounds).
-
-## Credits
-
-Inspired by [herdr](https://github.com/herdrdev/herdr) by herdrdev
-(Apache-2.0): the workspace/tab/pane runtime, detach and reattach. `herdstead`
-is an independent implementation, not a fork.
-
-Syntax highlighting uses [syntect](https://github.com/trishume/syntect) with
-[bat](https://github.com/sharkdp/bat)'s syntax and theme sets via
-[two-face](https://codeberg.org/CosmicHarper/two-face). Terminal emulation is
-[vt100](https://github.com/doy/vt100-rust); the TUI is
-[ratatui](https://ratatui.rs) and [crossterm](https://github.com/crossterm-rs/crossterm).
-
-Licensed under Apache-2.0. See [LICENSE](LICENSE).
+**Herd** + **stead**: a homestead for your agents. The mark is a house whose
+window is a pane grid, with one pane lit by the hearth. See [Brand](docs/brand.md).
+Inspired by [herdr](https://github.com/herdrdev/herdr). Apache-2.0 — see [LICENSE](LICENSE).

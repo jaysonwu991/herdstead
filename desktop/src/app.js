@@ -69,7 +69,7 @@ function fontSize(delta = 0) {
   document.documentElement.style.setProperty('--line-height', `${Math.ceil(state.fontSize * 1.5)}px`);
   $('#font-size').textContent = `${state.fontSize} px`;
   const family = state.fontFamily.replace(/[\\";\r\n]/g, '').slice(0, 100);
-  const font = `${family ? `"${family}", ` : ''}"SFMono-Regular", Menlo, "DejaVu Sans Mono", monospace`;
+  const font = `${family ? `"${family}", ` : ''}"Herdstead Mono", "SFMono-Regular", Menlo, "DejaVu Sans Mono", monospace`;
   document.documentElement.style.setProperty('--terminal-font', font);
   const measure = el('span', '', '0000000000');
   measure.style.cssText = `position:fixed;visibility:hidden;font-size:${state.fontSize}px`;
@@ -358,6 +358,7 @@ const commands = [
   ['Return focused pane to live output', '', () => focused() && action({ type: 'scroll_to_bottom', pane: focused().id })],
   ['Copy visible terminal output', '', () => navigator.clipboard.writeText(Terminal.plain(state.screens[focused()?.id] || []))],
   ['Close focused pane', '⌘ ⇧ W', () => action({ type: 'close_pane' })],
+  ['Check for updates', '', () => { settings(); return checkUpdate(); }],
   ['Reconnect to session', '', () => api.reconnect()],
 ];
 function renderCommands() {
@@ -466,4 +467,39 @@ on('#command-input', 'keydown', async event => {
 api.onEvent(receive); api.onCommand(command => { if (command === 'palette' && !$('#palette').open) palette(); });
 $('#files').hidden = !state.files; $('#files-button').setAttribute('aria-pressed', state.files);
 $('#rich-output-button').setAttribute('aria-pressed', state.rich);
-fontSize(); safely(async () => { for (const event of await api.state()) receive(event); terminalFocus(); })();
+safely(async () => {
+  // PTY geometry must use the loaded font, not a temporary system fallback.
+  try { await document.fonts.load(`${state.fontSize}px "Herdstead Mono"`); }
+  catch { showError('The bundled terminal font could not load. Using a system font.'); }
+  fontSize();
+  for (const event of await api.state()) receive(event);
+  terminalFocus();
+})();
+
+async function checkUpdate() {
+  const button = $('#check-update');
+  button.disabled = true;
+  $('#install-update').hidden = true;
+  $('#update-status').textContent = 'Checking for updates…';
+  try {
+    if (!api.checkUpdate) throw new Error('Updates are available in the installed desktop app.');
+    const update = await api.checkUpdate();
+    $('#update-status').textContent = update ? `Version ${update.version} is available.` : 'You are up to date.';
+    $('#install-update').hidden = !update;
+  } catch (error) {
+    $('#update-status').textContent = `Cannot check for updates: ${error.message || error}`;
+  } finally { button.disabled = false; }
+}
+on('#check-update', 'click', checkUpdate);
+on('#install-update', 'click', async () => {
+  $('#install-update').disabled = true;
+  $('#check-update').disabled = true;
+  $('#update-status').textContent = 'Downloading and installing update…';
+  try { await api.installUpdate(); }
+  catch (error) {
+    $('#update-status').textContent = `Update failed: ${error.message || error}. Check for updates to try again.`;
+    $('#install-update').hidden = true;
+    $('#install-update').disabled = false;
+    $('#check-update').disabled = false;
+  }
+});

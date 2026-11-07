@@ -10,20 +10,42 @@
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [{
-      "title": "Herdstead", "width": 1500, "height": 960,
-      "minWidth": 900, "minHeight": 600,
-      "titleBarStyle": "Overlay", "hiddenTitle": true,
-      "backgroundColor": "#0e1117"
-    }],
-    "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'" }
+    "windows": [
+      {
+        "title": "Herdstead",
+        "width": 1500,
+        "height": 960,
+        "minWidth": 900,
+        "minHeight": 600,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "backgroundColor": "#0e1117"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset:; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'"
+    }
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": { "binaries/herdstead": "herdstead" },
-    "icon": ["icons/icon.png", "icons/icon.icns"],
+    "resources": {
+      "binaries/herdstead": "herdstead"
+    },
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.icns"
+    ],
     "category": "DeveloperTool",
-    "shortDescription": "A homestead for coding agents"
+    "shortDescription": "A homestead for coding agents",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUzMzUxREY1MTc4OUFFOEEKUldTS3Jva1g5UjAxVXl2QzZnbFZGRWhtTUd2bldHeXFjOWR1OXVDSERiWktaMGU3cDZ5NTFyMXcK",
+      "endpoints": [
+        "https://github.com/jaysonwu991/herdstead/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

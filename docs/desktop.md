@@ -2,14 +2,13 @@
 
 Herdstead Desktop is a Tauri 2 application for macOS and Linux. It uses the
 system webview and the existing Rust session daemon. Closing the window leaves
-shells and agents running; reopening the same session reattaches to them. The
-TUI can attach to that same session.
+shells and agents running; reopening the same session reattaches to them.
 
 ## Run from source
 
 Install a current stable Rust toolchain, Node.js 22 or newer, and the
 [Tauri system prerequisites](https://v2.tauri.app/start/prerequisites/).
-The terminal-only binary does not require the Tauri webview dependencies.
+The bundled runtime builds separately; the user interface requires the webview.
 
 From the repository root:
 
@@ -34,18 +33,25 @@ The default folder is the launch directory (or the home folder when launched
 without one), and the session defaults to that folder's name. The **+** beside
 Workspaces opens a native folder picker and adds a workspace to that session.
 
-Build a native application and installer locally:
+## Native builds and downloads
+
+For prebuilt DMGs, AppImages and Debian packages, installation and in-app updates,
+see [getting started](getting-started.md). Desktop is the only distributed app.
+The runtime is bundled; there is no separate CLI installer.
+
+Local unsigned builds can disable update artifacts:
 
 ```sh
-npm run build
+npm run build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
 # macOS app only:
-npm run build -- --bundles app
+npm run build -- --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
-Bundles appear under `desktop/src-tauri/target/release/bundle/`. The bundle
-contains the runtime; an installed `herdstead` command is not required. These
-are local builds, not signed or notarised releases. The existing curl installer
-continues to install the terminal binary.
+Bundles appear under `desktop/src-tauri/target/release/bundle/`. To generate
+signed update artifacts, set `TAURI_SIGNING_PRIVATE_KEY` to the release signing
+key and its optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, then run `npm run build`.
+The public key in `tauri.conf.json` must match. These update signatures are
+separate from Apple Developer ID signing and notarisation.
 
 ## The shell and rich terminal
 
@@ -63,8 +69,9 @@ For example, a Starship installation still uses its normal zshrc line:
 eval "$(starship init zsh)"
 ```
 
-**Appearance** sets the desktop palette and terminal font. Select an installed
-Nerd Font (such as JetBrainsMono Nerd Font) for prompt symbols. Prompt themes
+**Appearance** sets the desktop palette and terminal font. The default is the bundled JetBrains Mono Nerd Font, including Powerline and
+Nerd Font prompt symbols. An installed font can override it; the bundled font
+stays in the fallback chain for symbols missing from that font. Prompt themes
 come from zsh/Starship/Oh My Zsh; their ANSI colours are preserved. The desktop
 palette is separate from that shell configuration.
 
@@ -148,13 +155,6 @@ semantic control/function keys, bracketed paste and daemon-owned scrollback.
 Native selection/copy and IME input remain available. Mouse reporting is not
 forwarded to applications; the mouse controls panes, selection and scrollback.
 
-To use the same shell integration outside the desktop, add this after your
-prompt/plugins in `.zshrc`:
-
-```zsh
-eval "$(herdstead shell-init)"
-```
-
 ## Controls
 
 The shortcut modifier is Cmd on macOS and Ctrl on Linux.
@@ -179,7 +179,8 @@ was previously focused.
 
 Drag between panes to resize. Scroll over a shell to move through daemon
 scrollback, and click its scroll offset to return to live output. Viewer panes
-scroll independently in the client. The command palette also offers rename,
+scroll independently in the client. Appearance includes **Check for updates** and **Install update and restart**.
+The command palette also offers rename,
 focus cycling, a folder tree viewer, scrolling and copying the visible output.
 Search covers the current viewport, not the entire scrollback. Files over
 4 MiB are refused by desktop viewers with an explanation; terminal commands
