@@ -37,6 +37,13 @@
       "icons/icon.icns"
     ],
     "category": "DeveloperTool",
+    "macOS": {
+      "dmg": {
+        "windowSize": { "width": 540, "height": 380 },
+        "appPosition": { "x": 130, "y": 180 },
+        "applicationFolderPosition": { "x": 410, "y": 180 }
+      }
+    },
     "shortDescription": "A homestead for coding agents",
     "createUpdaterArtifacts": true
   },

@@ -94,6 +94,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPIMAGE_EXTRACT_AND_RUN: '1'
           NO_STRIP: 'true'
+          # Save the installer window layout instead of skipping Finder setup in CI.
+          TAURI_BUNDLER_DMG_IGNORE_CI: 'true'
         run: |
           test -n "$TAURI_SIGNING_PRIVATE_KEY"
           pnpm run build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
