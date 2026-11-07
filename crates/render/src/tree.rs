@@ -65,7 +65,8 @@ pub struct TreeScan {
     pub entries: Vec<TreeEntry>,
     pub files: usize,
     pub dirs: usize,
-    /// Entries skipped because of depth, ignores or the entry cap.
+    /// Skipped children at depth/entry limits, unreadable directories and cycles.
+    /// Ignored names and unvisited descendants are not counted.
     pub skipped: usize,
 }
 

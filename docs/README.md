@@ -23,7 +23,8 @@ whatever you are trying to do.
 | [Troubleshooting](troubleshooting.md) | logs, stale sessions, config warnings, restore problems |
 | [Brand](brand.md) | the name, the mark, the palette, using the assets |
 
-Everything here describes herdstead 0.1.0.
+These pages describe the implementation in this checkout. Release binaries may
+differ; use `herdstead --version` to identify your build.
 
 ## The shape of it
 
@@ -39,8 +40,8 @@ flowchart LR
 
 One binary, two roles: `herdstead` attaches to a session (starting its daemon if
 one is not running), and `herdstead --server` is that daemon. The daemon owns the
-processes, the layout and focus; the client owns the theme, the composer and what
-you have scrolled. That split is why closing the terminal leaves your agents
+processes, the layout, focus and terminal scrollback offsets; the client owns
+the theme, the composer and viewer scroll positions. That split is why closing the terminal leaves your agents
 working, and why reattaching is instant.
 
 ## The features in one page

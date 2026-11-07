@@ -51,9 +51,11 @@ protocol small: an action either changes the session or it does not exist.
 | `herdstead-render` | Markdown, syntax highlighting, trees, link decoration, the composer, ANSI output | syntect, two-face |
 | `herdstead` (binary) | daemon, client, CLI | ratatui, crossterm, portable-pty, vt100, the two crates above |
 
-The render crate is deliberately pure: text plus a `Theme` in, styled rows out.
+Drawing functions are pure: text plus a `Theme` in, styled rows out.
+`code::highlight_file`, `render_file`, `render_path` and `tree::scan` perform file
+IO; clients choose when to invoke them.
 The TUI maps those rows into a ratatui buffer; the CLI maps them into ANSI. That
-is why a file, a Markdown page and a tree look identical in a pane and in
+is why files, Markdown pages and trees share rendering behaviour in panes and
 `herdstead cat`/`md`/`tree`.
 
 ### Modules
@@ -83,8 +85,9 @@ is why a file, a Markdown page and a tree look identical in a pane and in
 
 ## The protocol
 
-Frames are newline-delimited JSON over a Unix socket, capped at 32 MiB each. A
-client says:
+Frames are newline-delimited JSON over a Unix socket. Socket readers currently
+read whole lines without enforcing a frame-size limit; the desktop bridge
+separately caps incoming messages at 32 MiB. A client says:
 
 | request | meaning |
 |---|---|
@@ -107,6 +110,7 @@ The daemon answers with `Snapshot { snapshot }`, `Detached { reason }` or
 | tabs | `NewTab { cwd }`, `SelectTab`, `CycleTab`, `CloseTab`, `RenameTab` |
 | workspaces | `NewWorkspace { dir }`, `SelectWorkspace`, `CycleWorkspace`, `CloseWorkspace`, `RenameWorkspace` |
 | viewers | `OpenViewer { path, kind, split }` |
+| naming | `RenamePane { name }` (tabs and workspaces have their own rename actions) |
 | session | `Resize { size, area }`, `Detach`, `Kill` |
 
 Keys are sent as semantic events, not bytes. The runtime encodes them for the
@@ -139,10 +143,10 @@ are dropped, which keeps a busy frame in the tens of kilobytes rather than the
 hundreds.
 
 Snapshots are produced on demand (attach, `Inspect`) and broadcast after any
-change, at most once per runtime loop iteration (about 20 per second under
-constant output). Each client has a two-frame queue: a client that cannot keep
-up drops stale frames instead of growing the daemon's memory, and the next frame
-is complete anyway.
+change, at most once per runtime loop iteration. The 50 ms receive timeout is
+an idle wait, not a broadcast rate limit. Each client has a two-frame queue: when it is
+full, newly offered frames are dropped while queued frames remain. A later
+successful snapshot is complete, so no diff replay is needed.
 
 ## The daemon
 
@@ -167,7 +171,7 @@ Threads in one daemon:
 | thread | job |
 |---|---|
 | main | receive messages, apply actions, tick, broadcast, save |
-| accept | one per incoming connection |
+| accept | one listener thread accepting incoming connections |
 | client reader | frames in, per client |
 | client writer | pre-encoded frames out, per client |
 | pane reader | blocking reads from the PTY, OSC tracking, feed the runtime |
@@ -175,8 +179,9 @@ Threads in one daemon:
 
 The main loop waits up to 50 ms for a message, handles everything queued, and
 then: re-classifies panes every 250 ms, broadcasts if anything changed, and
-writes the layout two seconds after the last structural change. Signals are
-handled with a flag: `SIGTERM`/`SIGINT` save and stop, `SIGHUP` and `SIGPIPE`
+saves changed session state when at least two seconds have passed since the
+previous save. It does not wait for a quiet period after the last change.
+Signals are handled with a flag: `SIGTERM`/`SIGINT` save and stop, `SIGHUP` and `SIGPIPE`
 are ignored.
 
 A pane is a real PTY (`portable-pty`) with a `vt100::Parser` sized to the pane's
@@ -202,9 +207,10 @@ Node::Split { dir: Vertical, ratio: 0.5,
         second: Leaf(p3) } }
 ```
 
-- `split_areas` divides a rect, removing exactly one cell for the divider, and
-  keeps each side at least one cell.
-- Ratios are clamped to `0.05..=0.95`, so a pane never disappears.
+- `split_areas` reserves one divider cell and at least one cell per child when
+  the split axis has three or more cells. Smaller areas omit the divider and
+  may leave a child with zero cells.
+- Ratios are clamped to `0.05..=0.95` during layout and resizing.
 - `resize(pane, dir, cells)` finds the nearest ancestor split whose axis matches
   and whose side the pane is on, and moves that divider.
 - `neighbor(placements, pane, dir)` picks the closest pane in that direction,
@@ -220,9 +226,9 @@ closing anything re-runs the layout and resizes the PTYs that are visible.
 
 `SessionState` serialises whole: workspaces, tabs, the layout tree, ratios, focus,
 zoom, pane metadata and the id allocator. On start the daemon reads it, drops
-panes that no longer belong to a tab, starts a fresh process for every shell pane
-in its recorded folder, and re-detects status. Nothing about a running process is
-restored, because nothing about a process can be.
+panes that no longer belong to a tab, and re-detects status. A restored shell
+starts a fresh process in its recorded folder when its tab first becomes visible.
+Running processes and their output are not restored.
 
 ## The client
 
@@ -255,8 +261,8 @@ composer preview does.
 |---|---|
 | unit tests in `core` | geometry, splits, closing, focus, resize, themes, config layering, binding syntax, mention parsing, link scanning |
 | unit tests in `render` | exact columns, links surviving wrapping, table alignment, image placeholders, code gutters, tree scanning, ANSI output |
-| `tests/runtime.rs` | a real daemon: shell output, typed keys, splits, scrollback, viewer panes, kill, restart-restore, error frames |
-| `tests/client.rs` | the real TUI in a PTY: drawn chrome, prefix splits verified through the socket, the composer, `@path` completion, Markdown preview, viewer panes, detach/reattach, resize, and the non-TTY guard |
+| `crates/app/tests/runtime.rs` | a real daemon: shell output, typed keys, splits, scrollback, viewer panes, kill, restart-restore, error frames |
+| `crates/app/tests/client.rs` | the real TUI in a PTY: drawn chrome, prefix splits verified through the socket, the composer, `@path` completion, Markdown preview, viewer panes, detach/reattach, resize, and the non-TTY guard |
 
 The end-to-end tests spawn the built binary and talk to it the way a user does,
 which is why a regression in the socket protocol or in key encoding fails a test
@@ -271,7 +277,7 @@ native host starts `herdstead desktop-bridge` with piped stdin/stdout. That proc
 uses `client::connect_or_spawn` and the existing Unix socket protocol; the daemon
 has no knowledge of desktop presentation. No `Action` or `Snapshot` fields change.
 
-The bridge uses newline-delimited JSON, with the same 32 MiB incoming frame cap.
+The bridge uses newline-delimited JSON with a 32 MiB incoming message cap.
 Runtime snapshots retain their protocol shape, alongside `screens` containing
 styled spans from `render::term` and `render::link`. Desktop requests have a
 numeric `id` and a `type`: `action` forwards a typed daemon action; `directory`
@@ -311,9 +317,10 @@ runtime facts; no command-line buffer or presentation field enters the protocol.
 
 `render::term::rich_lines` is pure and shared by desktop and TUI. It interprets
 plain Markdown output a row at a time and highlights fenced code with the shared
-syntax engine. It never changes row count, active input, soft-wrapped content,
-already styled output or alternate-screen applications. The desktop can select
-raw output instead. Complete Markdown documents use the shared block renderer
+syntax engine. It preserves row count and leaves the cursor row, soft-wrapped
+content, already styled output and alternate-screen applications out of block
+interpretation. Editable input is styled separately by `decorate_input`.
+The desktop can select raw output instead. Complete Markdown documents use the shared block renderer
 through `md`/`render`, so tables and paragraph reflow are not constrained to a
 terminal screen's existing rows.
 

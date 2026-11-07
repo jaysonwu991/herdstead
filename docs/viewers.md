@@ -2,7 +2,7 @@
 
 A pane is either a terminal or a **viewer**. A viewer renders content with the
 client's theme and the same code the CLI uses, which is why a file looks the same
-in a pane, in `herdstead cat` and in this documentation.
+in a pane and in CLI output, with different widths and framing options.
 
 ## Opening one
 
@@ -31,9 +31,8 @@ extension.
 - the theme's syntax theme decides token colours; `mono` maps them to grey
 - long lines are truncated at the pane width, and files are capped at 5000 lines
   with a `… n more lines` row
-- binary files (a NUL byte in the first read) are refused with a message instead
-  of filling the screen with control characters; SVG and XML are text, so they
-  open normally
+- the whole file is read as UTF-8; invalid UTF-8 or a NUL byte produces an error
+  before highlighting. SVG and XML files containing valid UTF-8 open normally
 - `herdstead languages` lists every supported language
 
 ## The Markdown viewer
@@ -53,7 +52,7 @@ The same renderer draws the composer preview and `herdstead md`.
 
 ```bash
 herdstead tree                    # the current folder
-herdstead tree src --depth 3
+herdstead tree crates --depth 3
 herdstead tree . --all            # include target/, node_modules/, .git/
 ```
 
@@ -61,13 +60,18 @@ herdstead tree . --all            # include target/, node_modules/, .git/
 - box-drawing guides, colour by kind: folder, file, executable (`*`), symlink
   (with its target)
 - each file's size, right-aligned
-- a header with the folder, file count, folder count, and how many entries were
-  not shown
+- a header with the folder, shown file and folder counts, and a skipped-entry
+  count when depth, entry caps or unreadable directories limit the scan. Ignored
+  folders are excluded from the counts
 - `tree-ignores` (default `target`, `node_modules`, `.git`, `dist`, `build`,
   `.venv`) are skipped, and symlinked folders are not followed unless you change
   the code's options
 - `tree-max-entries` (default 4000) and a depth of 8 in the viewer stop a huge
-  tree from stalling the renderer
+  tree from producing unbounded output
+
+The standalone `herdstead tree` command uses the built-in ignore list and entry
+cap, with `--all` and `--depth` overrides. `herdstead preview` and TUI tree viewers
+use the configured `tree-ignores` and `tree-max-entries`.
 
 ## Reading and scrolling
 

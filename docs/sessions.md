@@ -58,17 +58,18 @@ The daemon keeps everything while it runs. Across a daemon restart — a reboot,
 | each pane's working folder | environment changes |
 | viewer panes and the files they show | running processes |
 
-Restored shell panes start a fresh shell in their recorded folder. A folder that
-no longer exists falls back to the session's first folder. Agent panes are
+Restored shell panes start a fresh shell in their recorded folder when their
+tab first becomes visible. A folder that no longer exists falls back to the
+folder where the new daemon started. Agent panes are
 detected again from what they draw.
 
-The layout is written two seconds after a structural change and on shutdown.
+Changed session state is saved at most once every two seconds, and on shutdown.
 Nothing is written per frame, so a busy pane does not hammer the disk.
 
 ## Working folders
 
 A pane's folder is reported by the shell through OSC 7 (`\e]7;file://host/path`),
-which bash, zsh, fish and most prompts emit. herdstead reads it from the pane's
+when shell integration or your prompt is configured to emit it. herdstead reads it from the pane's
 output, so new panes, the composer's `@path` completion and the viewer all resolve
 relative paths against what the pane is actually showing — not the folder the
 pane was created in.
@@ -101,15 +102,15 @@ a question that has scrolled away does not block the pane.
 ## More than one client
 
 Several clients may attach to one session; each gets the same snapshots. The
-**most recently attached client's size wins**: the runtime lays panes out for the
-last size it was told, so two clients of very different sizes will re-layout for
+**last attach or resize wins**: the runtime lays panes out for the
+last size and pane area it was told, so two clients of very different sizes will re-layout for
 each other. Attach from one terminal at a time unless you want that.
 
 ## Where a session lives
 
 | what | path |
 |---|---|
-| socket | `$HERDSTEAD_RUNTIME_DIR` / `$XDG_RUNTIME_DIR/herdstead` / `/tmp/herdstead-<uid>` + `<name>.sock` |
+| socket | `$HERDSTEAD_RUNTIME_DIR` / `$XDG_RUNTIME_DIR/herdstead` / `<system-temp>/herdstead-<uid>` + `<name>.sock` |
 | layout | `$HERDSTEAD_STATE_DIR` / `$XDG_STATE_HOME/herdstead` / `~/.local/state/herdstead` + `sessions/<name>.json` |
 | log | the same state folder + `logs/<name>.log` |
 

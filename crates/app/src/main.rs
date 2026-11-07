@@ -73,7 +73,7 @@ enum Command {
         path: PathBuf,
         #[arg(long)]
         no_line_numbers: bool,
-        /// Emit OSC 8 hyperlinks for references in the file.
+        /// Allow OSC 8 output for any attached links (source highlighting adds none).
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         links: bool,
     },
@@ -91,7 +91,7 @@ enum Command {
     /// Render Markdown to the terminal.
     Md {
         path: PathBuf,
-        /// Read from stdin instead of a file.
+        /// Read stdin instead of the required path argument; `md -` also reads stdin.
         #[arg(long)]
         stdin: bool,
     },

@@ -149,7 +149,7 @@ function renderChrome() {
 let chromeSignature = '';
 function render() {
   if (!state.snapshot) return;
-  // Terminal frames arrive up to 20 times a second. Chrome changes much less.
+  // Terminal frames change frequently; rebuild chrome only when its state changes.
   const signature = JSON.stringify([state.snapshot.workspaces, state.snapshot.focused, state.snapshot.panes.map(p => [p.id, p.title, p.status]), state.snapshot.zoomed]);
   if (signature !== chromeSignature) { chromeSignature = signature; renderChrome(); }
   $('#dimensions').textContent = focused()?.grid ? `${focused().grid.cols} × ${focused().grid.rows} · UTF-8` : 'Rich viewer';

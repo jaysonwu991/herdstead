@@ -45,7 +45,7 @@ rebound — `prefix+shift+1` arrives as `prefix+!` and is treated as workspace 1
 
 | key | action | what it does |
 |---|---|---|
-| `prefix+: ` | `composer` | focus the composer |
+| `prefix+:` | `composer` | focus the composer |
 | `prefix+t` | `theme-menu` | theme menu with live preview |
 | `prefix+m` | `markdown-preview` | composer with the Markdown preview on |
 | `prefix+e` | `open-file` | fill the composer with `/open ` |
@@ -73,13 +73,14 @@ While the composer has focus it takes every key — including the prefix — so
 
 | key | effect |
 |---|---|
-| `Enter` | send, or run a slash command |
+| `Enter` | accept an open completion; otherwise send or run a slash command |
 | `Shift+Enter` | newline |
 | `Tab` | accept the completion, else insert two spaces |
 | `Esc` | close the composer |
-| `←` `→` `Home` `End` | move the caret (with `Ctrl`, by word) |
+| `←` / `→` | move the caret; with `Ctrl`, by word |
+| `Home` / `End` | start / end of the whole message |
 | `↑` `↓` | completion, or the previous/next line |
-| `Ctrl+A` / `Ctrl+E` | start / end of the line |
+| `Ctrl+A` / `Ctrl+E` | start / end of the whole message |
 | `Ctrl+U` / `Ctrl+K` | delete before / after the caret |
 | `Ctrl+W` | delete the previous word |
 | `Ctrl+P` | toggle the Markdown preview |
@@ -116,7 +117,7 @@ back.
 [keybinds]
 split-vertical = "prefix+|"
 close-pane = "prefix+shift+q"
-focus-left = "ctrl+alt+h"
+focus-left = "prefix+alt+h"
 theme-menu = "prefix+y"
 ```
 
@@ -126,7 +127,7 @@ A spec is modifiers and a key, joined by `+`:
   `shift`, `super` (or `cmd`, `command`, `meta`)
 - keys: a single character, `space`, `tab`, `backtab`, `enter`, `esc`,
   `backspace`, `delete`, `insert`, `left`, `right`, `up`, `down`, `home`, `end`,
-  `pageup`, `pgdown`, `f1` … `f24`
+  `pageup`/`pgup`, `pagedown`/`pgdn`/`pagedn`, `f1` … `f24`
 - `prefix++` binds the `+` key; `prefix+|` and `prefix+?` are written that way
   and pressed with Shift, which punctuation ignores
 
@@ -134,15 +135,17 @@ Matching rules worth knowing:
 
 - For letters, Shift is carried by the character's case: `shift+r` matches `R`,
   and plain `v` does not match `V`.
-- Punctuation ignores Shift, so `prefix+?` is `prefix+shift+/` on a US keyboard.
+- Punctuation ignores the Shift modifier when matching the resulting character:
+  press Shift+/ for `prefix+?` on a US keyboard, and write `prefix+?` in config.
 - Modifiers must match exactly. `prefix+ctrl+v` is not `prefix+v`.
 - If two actions share a spec, the alphabetically first action name wins, so
   avoid duplicates (the config reports unknown actions, not conflicts).
-- A binding without `prefix` is a direct key. Binding `v` alone would take `v`
-  away from every pane, so use direct keys only for things like `f2` or
-  `ctrl+alt+…`.
+- The parser accepts specs without `prefix`, but the current TUI only dispatches
+  configured actions after the prefix. Use `prefix+…` bindings; direct global
+  shortcuts are not implemented (see [troubleshooting](troubleshooting.md#a-key-does-nothing)).
 
 Unknown action names and unparsable specs are warnings, and the default stays in
-place for that action. `herdstead keys` shows the result; the daemon does not
-need a restart, only the client does, so rebinding is picked up by `prefix+r`
-(the theme and config are re-read) or by the next attach.
+place for an unparsable spec. Unknown names have no implemented action and
+should be removed: a valid binding for one can still consume that key.
+`herdstead keys` lists supported actions; rebinding is picked up by `prefix+r`
+or by the next attach, without restarting the daemon.

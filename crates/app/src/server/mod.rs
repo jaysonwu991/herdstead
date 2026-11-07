@@ -71,7 +71,7 @@ fn libc_sighup() -> i32 {
 
 /// How often pane activity is re-classified.
 const TICK: Duration = Duration::from_millis(250);
-/// How long structural changes wait before being written to disk.
+/// Minimum interval between saves of changed session state.
 const SAVE_INTERVAL: Duration = Duration::from_secs(2);
 
 pub fn run(session: String) -> Result<()> {
@@ -300,7 +300,7 @@ impl Runtime {
             return false;
         }
         state.name = self.session.clone();
-        // Panes whose folder disappeared fall back to the session's first folder.
+        // Missing pane folders fall back to the folder where this daemon started.
         for workspace in &mut state.workspaces {
             if !workspace.dir.is_dir() {
                 workspace.dir = self.start_cwd.clone();
@@ -327,7 +327,7 @@ impl Runtime {
         self.pane_area
     }
 
-    /// Resizes every visible pane and starts any pane that has no process yet.
+    /// Resizes visible shell panes and starts those without a process yet.
     fn relayout(&mut self) {
         let area = self.content_area();
         let placements = self.state.active_placements(area);

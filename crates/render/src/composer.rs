@@ -1,5 +1,5 @@
 //! The composer: a prompt line that renders inline Markdown, links, `@paths`
-//! and a live Markdown preview, the way Oxide's composer does.
+//! and a live Markdown preview.
 
 use herdstead_core::mention;
 use herdstead_core::text;

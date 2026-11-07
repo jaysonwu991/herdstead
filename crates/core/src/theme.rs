@@ -158,7 +158,8 @@ pub enum Appearance {
     Light,
 }
 
-/// Every colour the interface and the renderers draw with.
+/// Semantic UI and content colours. Syntax tokens and explicit ANSI output
+/// use their own palettes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Theme {
     pub name: String,
@@ -350,7 +351,7 @@ impl Theme {
         })
     }
 
-    /// The default theme, also the base every custom theme extends.
+    /// The default theme, used when a custom theme omits `extends`.
     pub fn midnight() -> Self {
         Self::builtin("midnight").expect("midnight is built in")
     }
@@ -426,7 +427,7 @@ impl Theme {
         }
     }
 
-    /// Resolves a terminal colour for text or background use.
+    /// Resolves a terminal foreground colour; use `resolve_bg` for backgrounds.
     pub fn resolve(&self, color: TermColor) -> Rgb {
         match color {
             TermColor::Default => self.fg,
@@ -442,7 +443,8 @@ impl Theme {
         }
     }
 
-    /// Applies `name = "#rrggbb"` overrides, returning the first unknown slot.
+    /// Applies overrides in key order, stopping at the first invalid colour or
+    /// unknown slot. Earlier changes remain applied on error.
     pub fn apply_overrides(&mut self, overrides: &BTreeMap<String, String>) -> Result<(), String> {
         for (slot, value) in overrides {
             let Some(color) = Rgb::parse(value) else {
@@ -515,7 +517,8 @@ impl Theme {
         Ok(theme)
     }
 
-    /// Built-ins plus every `*.json` theme file in `dir`, sorted by name.
+    /// Built-ins in declaration order, followed by valid custom files sorted by
+    /// name. A custom name replaces the matching catalogue entry.
     pub fn catalog(dir: &Path) -> Vec<Self> {
         let mut themes: Vec<Self> = Self::NAMES
             .iter()

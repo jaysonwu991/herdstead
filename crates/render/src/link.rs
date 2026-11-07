@@ -63,7 +63,7 @@ pub fn decorate(line: &Line, theme: &Theme, resolve: &dyn Fn(&str) -> bool) -> L
     out
 }
 
-/// Highlights the mention at `range` in a composer line as existing or not.
+/// Styles every mention whose link target matches `path`, according to existence.
 pub fn mark_mention(spans: &mut [Span], path: &str, exists: bool, theme: &Theme) {
     let color = if exists { theme.mention } else { theme.error };
     for span in spans {

@@ -70,7 +70,7 @@ cleaning up, or one from a different user. Stop it and remove the file:
 
 ```bash
 herdstead kill <name>            # sends Kill, then removes the socket
-ls /tmp/herdstead-$(id -u)/      # check what is left
+herdstead config                # find the runtime directory in use
 ```
 
 Attaching to a stale socket also recovers: the client sees that nobody is
@@ -86,37 +86,44 @@ ls ~/.local/state/herdstead/sessions/
 herdstead -s old-name
 ```
 
-If `restore = false`, a new daemon starts with one fresh shell and leaves the old
-layout file untouched. If the layout file is unreadable, the daemon says so in its
-log and starts fresh rather than failing.
+If `restore = false`, a new daemon starts with one fresh shell and saves that
+fresh layout over the previous file. Copy a saved layout before starting if you
+need to preserve it. A missing or unreadable file starts fresh; invalid JSON is
+recorded in the daemon's warnings, which are printed on shutdown.
 
 ## Panes came back in the wrong folder
 
 A pane's folder is reported by its shell through OSC 7. A shell or prompt that
 does not emit it leaves herdstead with the folder the pane was created in. New
 panes then start there too. Any prompt that shows the working directory can emit
-OSC 7; most do.
+OSC 7; enable your shell or prompt's directory-reporting hook if needed.
+The bundled zsh integration emits it automatically.
 
 ## The theme did not change
 
 - An unknown name falls back to `midnight` with a warning on stderr.
-- A theme file that fails to parse is reported by name (broken JSON, unknown slot,
-  unparsable colour) — the rest of the theme is still applied when only one slot
-  is wrong.
-- `theme-colors` overrides apply to whichever theme is active; a typo in a slot
-  name is a warning, not an error.
+- A custom theme file with broken JSON, an unknown base or slot, or an
+  unparsable colour is rejected as a whole and omitted from the menu. Fix the
+  file and reload. `extends` accepts built-in palettes only.
+- Config `theme-colors` overrides are applied in sorted slot order and stop at
+  the first invalid slot or colour. Earlier overrides remain applied; later
+  ones do not. Correct the reported entry and reload.
 - `prefix+r` reloads the config and theme; choosing in `prefix+t` applies
   immediately. `Esc` in that menu restores the theme you had.
 
 ## A key does nothing
 
 - While the **composer** has focus it takes every key; press `Esc` first.
-- An unknown action name or an unparsable spec is a warning and that action keeps
-  its default. `herdstead keys` shows the result.
+- An unparsable spec warns and keeps the default. Remove unknown action names:
+  a valid binding for one can consume its key without performing an action.
+  `herdstead keys` shows supported actions.
+- Direct bindings without `prefix` are parsed, but not dispatched as global
+  shortcuts by the current TUI. Configure `prefix+…` instead.
 - Letters compare case-sensitively for `shift`: `prefix+shift+r` needs `R`.
   Punctuation ignores shift.
 - If two actions share a spec, the alphabetically first action name wins.
-- The prefix itself must match exactly (`ctrl+b`, not `ctrl+B`).
+- Key specs are parsed case-insensitively; use `shift` explicitly for an
+  uppercase letter binding. Modifiers must match the incoming event.
 
 ## The composer will not send
 
@@ -125,15 +132,26 @@ pane's process has exited, it says so and keeps your text. Focus a shell
 (`prefix+h/j/k/l`) or start one (`prefix+v`). Slash commands still work from
 anywhere.
 
+## Composer Markdown markers disappear
+
+The TUI composer currently uses the inline display renderer, which hides
+recognised Markdown delimiters. Its stored message still includes those bytes
+and sends them to the pane. The desktop shell input uses a separate renderer
+that keeps delimiters visible.
+
 ## Links are not clickable
 
 - Hold the link modifier: `super` (Cmd) by default, or `ctrl`/`alt` per
   `link-modifier`.
 - A path is only a link when it exists relative to that pane's folder.
-- `links = false` turns the whole thing off.
-- For `herdstead cat` output, the terminal must support OSC 8 hyperlinks
-  (iTerm2, Ghostty, Kitty, WezTerm, VS Code). Elsewhere the text is still
-  readable, just not clickable.
+- `links = false` disables terminal-output link detection; rendered Markdown
+  and tree viewers can still carry links.
+- Markdown and tree CLI output use OSC 8 hyperlinks, which require a
+  supporting terminal. Highlighted source (`herdstead cat` and code viewers)
+  currently carries no link targets of its own. In a terminal pane, the client
+  can still detect links in that output.
+- A location suffix is recognised for linking, but opening a TUI viewer does
+  not currently jump to that source line.
 
 ## A viewer says "binary file"
 
@@ -159,6 +177,13 @@ terminals also have a modifier for native selection (often Shift or Option).
 macOS and Linux only: the client and daemon talk over a Unix socket. Windows has
 no support today. Mouse events are not forwarded into panes, so programs that
 expect them (htop's mouse, some TUIs) will not receive them.
+
+## Protocol limits
+
+The desktop bridge caps incoming JSON messages at 32 MiB. The Unix socket
+readers currently have no equivalent frame-size check, and incoming runtime
+messages use an unbounded channel. Keep the runtime directory private and use
+the normal clients; the outgoing two-frame queues only bound queued snapshots.
 
 ## Reporting a bug
 

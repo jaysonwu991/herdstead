@@ -47,7 +47,7 @@ pub struct Config {
     pub keybind_prefix: String,
     /// Action name → key spec, layered over the defaults.
     pub keybinds: BTreeMap<String, String>,
-    /// Theme slot → colour, applied over the built-in palette.
+    /// Theme slot → colour, applied over the selected built-in or custom theme.
     pub theme_colors: BTreeMap<String, String>,
 }
 
@@ -103,7 +103,8 @@ impl Config {
         self
     }
 
-    /// Defaults, then the global config file, then a project config file.
+    /// Layers the global file, `.herdstead/config.toml`, then `herdstead.toml`.
+    /// Syntax errors skip a file; a merged type error falls back to defaults.
     pub fn load(project: &Path, paths: &Paths) -> (Self, Vec<String>) {
         let mut warnings = Vec::new();
         let mut table = toml::Table::new();

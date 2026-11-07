@@ -78,8 +78,8 @@ pub struct ViewerSpec {
     pub kind: ViewerKind,
 }
 
-/// Runtime facts about one pane. The PTY or viewer content itself lives in the
-/// server; this is what both server and client show.
+/// Runtime facts about one pane. The server owns its PTY; clients read and
+/// render viewer content from the path recorded here.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PaneMeta {
     pub id: PaneId,
@@ -300,8 +300,8 @@ impl Workspace {
     }
 }
 
-/// Everything the runtime knows about a session. Serialisable as a whole, so a
-/// detached session survives a restart of the daemon and the host.
+/// Persistent session structure and pane metadata. PTYs, processes and screen
+/// contents are held separately by the daemon and do not survive a restart.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SessionState {
     pub name: String,
@@ -326,8 +326,8 @@ pub struct CloseOutcome {
 }
 
 impl SessionState {
-    /// A session with one workspace and one shell pane, whose meta the caller
-    /// supplies after spawning it.
+    /// A session with one workspace and one shell pane, using caller-supplied
+    /// metadata. The caller is responsible for starting the process.
     pub fn new(name: impl Into<String>, dir: impl Into<PathBuf>, pane: PaneMeta) -> Self {
         let dir = dir.into();
         let mut ids = Ids::new();
