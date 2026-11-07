@@ -47,6 +47,12 @@ cargo build --release          # target/release/herdstead
 `cargo build --release` takes about 15 seconds and produces a 5 MB binary with no
 runtime dependencies.
 
+## Desktop window
+
+For the native Tauri application, follow [Desktop](desktop.md). It uses the same
+session daemon and rich renderers, with a zsh terminal, file explorer and rich
+shell integration. Building the terminal binary alone does not require desktop libraries.
+
 ## The first session
 
 Run it from the project you are working in:

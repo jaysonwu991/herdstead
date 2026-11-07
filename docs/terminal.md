@@ -116,3 +116,14 @@ clickable.
 
 The daemon reads OSC 7 and OSC 0/2 from the pane's output; any shell that emits
 them — bash, zsh, fish, and most prompts — keeps the folder and title current.
+
+## Rich output and zsh integration
+
+Ordinary plain output can render headings, inline Markdown and fenced code in
+place. Row coordinates remain stable, and input, existing ANSI styles, wrapped
+rows and alternate-screen programs are preserved. The desktop offers a raw-output
+toggle. For full Markdown document layout, pipe to `herdstead render`.
+
+The desktop's zsh integration adds native `@path` completion and safely quoted
+arguments, rich interactive `cat`, `md` and `tree`, while loading your existing
+prompt framework. See [Desktop](desktop.md) for shell semantics and setup.

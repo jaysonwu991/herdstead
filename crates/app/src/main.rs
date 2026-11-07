@@ -3,7 +3,9 @@
 
 mod cli;
 mod client;
+mod desktop;
 mod server;
+mod shell;
 mod tui;
 
 use std::path::PathBuf;
@@ -41,6 +43,19 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Print zsh integration for `eval "$(herdstead shell-init)"`.
+    ShellInit,
+    /// Expand literal @path references for the zsh line editor.
+    #[command(hide = true)]
+    ShellExpand,
+    /// Render Markdown from a file or piped command output.
+    Render {
+        #[arg(default_value = "-")]
+        path: PathBuf,
+    },
+    /// JSON bridge used by the desktop application (no terminal required).
+    #[command(hide = true)]
+    DesktopBridge,
     /// Attach to a session, starting its daemon when needed.
     Attach,
     /// List live sessions.
@@ -115,6 +130,19 @@ fn main() -> Result<()> {
     let theme = load_theme(&args.theme, &config, &paths);
 
     match args.command {
+        Some(Command::ShellInit) => {
+            print!("{}", shell::ZSH);
+            Ok(())
+        }
+        Some(Command::ShellExpand) => {
+            use std::io::Read;
+            let mut input = String::new();
+            std::io::stdin().read_to_string(&mut input)?;
+            print!("{}", shell::expand(&input, &cwd)?);
+            Ok(())
+        }
+        Some(Command::Render { path }) => cli::markdown(&path, &theme, path.as_os_str() == "-"),
+        Some(Command::DesktopBridge) => desktop::run(session, cwd, paths, config, theme),
         None | Some(Command::Attach) => {
             use std::io::IsTerminal as _;
             if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {

@@ -1345,9 +1345,16 @@ impl App {
         match pane.kind {
             PaneKind::Shell => {
                 let grid = pane.grid.as_ref()?;
-                let lines = herdstead_render::term::term_lines(grid, &self.theme);
+                let mut lines = herdstead_render::term::rich_lines(grid, &self.theme);
+                let cwd = PathBuf::from(&pane.cwd);
+                herdstead_render::term::decorate_input(
+                    grid,
+                    &mut lines,
+                    &self.theme,
+                    self.config.links,
+                    &|path| route_path(&cwd, path).exists(),
+                );
                 if self.config.links {
-                    let cwd = PathBuf::from(&pane.cwd);
                     Some(
                         lines
                             .into_iter()

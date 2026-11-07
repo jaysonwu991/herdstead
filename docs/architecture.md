@@ -261,3 +261,66 @@ composer preview does.
 The end-to-end tests spawn the built binary and talk to it the way a user does,
 which is why a regression in the socket protocol or in key encoding fails a test
 rather than surfacing as a silent mis-render.
+
+## Desktop client
+
+`desktop/` is an optional Tauri 2 application with an independent Cargo workspace
+in `desktop/src-tauri`. It embeds the static client from `desktop/src` in the
+system webview and bundles the ordinary `herdstead` binary as a resource. The
+native host starts `herdstead desktop-bridge` with piped stdin/stdout. That process
+uses `client::connect_or_spawn` and the existing Unix socket protocol; the daemon
+has no knowledge of desktop presentation. No `Action` or `Snapshot` fields change.
+
+The bridge uses newline-delimited JSON, with the same 32 MiB incoming frame cap.
+Runtime snapshots retain their protocol shape, alongside `screens` containing
+styled spans from `render::term` and `render::link`. Desktop requests have a
+numeric `id` and a `type`: `action` forwards a typed daemon action; `directory`
+returns a bounded shallow listing; `viewer` invokes the existing client viewer;
+`preview` renders Markdown; `theme` changes the bridge's client-local
+palette; `rich_output` switches client-side output interpretation. Replies echo the id and carry either `value` or `error`. Theme changes
+refresh snapshots without changing the daemon's settings.
+On stdin EOF or an input error, the bridge shuts down its socket and joins the
+event reader before exiting, so a snapshot already being written reaches stdout
+as a complete JSON frame. The independent session daemon remains running.
+
+The Tauri host exposes only these operations, reconnect, cached initial state,
+a native folder picker and allowlisted HTTP/HTTPS/mailto opening. Pending requests
+are capped at 128 and time out after 15 seconds. A connection generation prevents
+late events from a stopped bridge affecting a reconnected window. Closing the
+app stops its bridge; the independent daemon keeps the PTYs alive.
+
+The page measures the terminal font and translates available pixels into a cell
+area. The daemon remains authoritative for layout, focus and PTY sizes. Semantic
+keys, input-method text and bracketed paste use the same actions as the TUI.
+Themes, rich-output preference, viewer scroll, panel visibility and fonts remain
+client-side. Terminal rows are updated only when their spans change, structural
+chrome is keyed separately, resize events are debounced, and viewer reads are
+cached for a second. Files and Markdown never become executable HTML.
+
+### Shell integration and output interpretation
+
+Desktop-started daemons receive `HERDSTEAD_SHELL_INTEGRATION=1`. For zsh panes,
+`server::pane` prepares startup wrappers under the private runtime directory,
+sources the original startup files once and loads `shell/herdstead.zsh` after the
+user's zshrc. It restores the user's ZDOTDIR before their framework runs. No user
+file is edited. ZLE widgets own reference highlighting, completion and acceptance;
+`herdstead shell-expand` parses standalone references into literal quoted path
+arguments, preserving quoted prose and shell syntax. Existing prompt hooks and
+non-reference completion stay active. The daemon still owns only the PTY and
+runtime facts; no command-line buffer or presentation field enters the protocol.
+
+`render::term::rich_lines` is pure and shared by desktop and TUI. It interprets
+plain Markdown output a row at a time and highlights fenced code with the shared
+syntax engine. It never changes row count, active input, soft-wrapped content,
+already styled output or alternate-screen applications. The desktop can select
+raw output instead. Complete Markdown documents use the shared block renderer
+through `md`/`render`, so tables and paragraph reflow are not constrained to a
+terminal screen's existing rows.
+
+`render::input` styles inline Markdown without removing source delimiters.
+`term::decorate_input` reconstructs the editable logical line across soft wraps,
+then restores the original terminal columns after styling and link detection.
+Links are scanned across style runs so a URL interrupted by ZLE or Markdown
+colour changes still carries one complete target. The desktop serialises badge
+offsets into existing blank cells or the gutter; local SVG logos are presentation
+only and add no text or PTY columns. Alternate-screen applications are excluded.

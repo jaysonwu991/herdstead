@@ -48,6 +48,21 @@ impl PanePty {
         command.env("HERDSTEAD", "1");
         command.env("HERDSTEAD_PANE", pane.to_string());
         command.env("HERDSTEAD_SESSION_PID", std::process::id().to_string());
+        if std::env::var("HERDSTEAD_SHELL_INTEGRATION").as_deref() == Ok("1")
+            && Path::new(shell)
+                .file_name()
+                .is_some_and(|name| name == "zsh")
+        {
+            command.arg("-l");
+            let dir = crate::shell::prepare(&herdstead_core::paths::Paths::discover())?;
+            let user_dir = std::env::var_os("ZDOTDIR")
+                .or_else(|| std::env::var_os("HOME"))
+                .unwrap_or_default();
+            command.env("HERDSTEAD_USER_ZDOTDIR", user_dir);
+            command.env("HERDSTEAD_INTEGRATION_DIR", &dir);
+            command.env("ZDOTDIR", &dir);
+            command.env("HERDSTEAD_EXECUTABLE", std::env::current_exe()?);
+        }
         let mut child = pair
             .slave
             .spawn_command(command)

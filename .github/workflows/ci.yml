@@ -17,6 +17,41 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  desktop:
+    name: desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            desktop/src-tauri -> target
+      - name: Install Linux webview prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev
+      - run: npm ci
+        working-directory: desktop
+      - run: cargo build --workspace --locked
+      - run: npm test
+        working-directory: desktop
+      - run: npm run prepare:runtime
+        working-directory: desktop
+      - run: cargo fmt --manifest-path desktop/src-tauri/Cargo.toml --check
+      - run: cargo clippy --manifest-path desktop/src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+
   lint:
     name: fmt + clippy
     runs-on: ubuntu-latest
