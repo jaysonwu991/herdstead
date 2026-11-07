@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
+use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -298,6 +299,64 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(PendingUpdate::default())
+        .menu(|app| {
+            let menu = Menu::default(app)?;
+            let application = Submenu::with_items(
+                app,
+                "Herdstead",
+                true,
+                &[
+                    &PredefinedMenuItem::about(
+                        app,
+                        Some("About Herdstead"),
+                        Some(AboutMetadata {
+                            name: Some("Herdstead".into()),
+                            version: Some(app.package_info().version.to_string()),
+                            ..Default::default()
+                        }),
+                    )?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(
+                        app,
+                        "check-for-updates",
+                        "Check for Updates…",
+                        true,
+                        None::<&str>,
+                    )?,
+                    &MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?,
+                    &PredefinedMenuItem::separator(app)?,
+                    #[cfg(target_os = "macos")]
+                    &PredefinedMenuItem::services(app, None)?,
+                    #[cfg(target_os = "macos")]
+                    &PredefinedMenuItem::separator(app)?,
+                    #[cfg(target_os = "macos")]
+                    &PredefinedMenuItem::hide(app, Some("Hide Herdstead"))?,
+                    #[cfg(target_os = "macos")]
+                    &PredefinedMenuItem::hide_others(app, None)?,
+                    #[cfg(target_os = "macos")]
+                    &PredefinedMenuItem::show_all(app, None)?,
+                    #[cfg(target_os = "macos")]
+                    &PredefinedMenuItem::separator(app)?,
+                    &PredefinedMenuItem::quit(app, Some("Quit Herdstead"))?,
+                ],
+            )?;
+            #[cfg(target_os = "macos")]
+            menu.remove_at(0)?;
+            menu.insert(&application, 0)?;
+            Ok(menu)
+        })
+        .on_menu_event(|app, event| {
+            let command = match event.id().as_ref() {
+                "settings" => "settings",
+                "check-for-updates" => "check-for-updates",
+                _ => return,
+            };
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = window.emit("herdstead:command", command);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             bridge_request,
             bridge_state,

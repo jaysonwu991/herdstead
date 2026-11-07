@@ -11,7 +11,10 @@ window.herdstead = {
     const ready = window.__TAURI__.event.listen('herdstead:event', event => callback(event.payload));
     return () => ready.then(unlisten => unlisten());
   },
-  onCommand: () => {},
+  onCommand: callback => {
+    const ready = window.__TAURI__.event.listen('herdstead:command', event => callback(event.payload));
+    return () => ready.then(unlisten => unlisten());
+  },
 };
 // Tauri delegates the draggable title bar to the native window.
 for (const selector of ['.brand', '#topbar']) document.querySelector(selector)?.addEventListener('mousedown', event => {

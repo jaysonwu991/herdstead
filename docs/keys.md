@@ -13,7 +13,7 @@ The shortcut modifier is Cmd on macOS and Ctrl on Linux.
 | Cmd/Ctrl+1–9 | select tab |
 | Cmd/Ctrl+B | toggle Files |
 | Cmd/Ctrl+F | find matching rows in visible output |
-| Cmd/Ctrl+, | appearance |
+| Cmd/Ctrl+, | settings |
 | Cmd/Ctrl+plus/minus | change terminal font size |
 
 Terminal keys, paste and input methods go to the focused PTY. Unclaimed native

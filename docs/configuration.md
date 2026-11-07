@@ -71,7 +71,7 @@ falls back to `midnight`.
 The old TUI settings `mouse`, `sidebar`, `sidebar-width`,
 `composer-markdown-preview`, `status-bar`, `keybind-prefix`, `keybinds` and
 `link-modifier` remain accepted for configuration compatibility. They do not
-control the desktop. Use Appearance, the Files button and the shortcuts in
+control the desktop. Use Settings, the Files button and the shortcuts in
 [keys](keys.md). Desktop links open with Cmd/Ctrl-click.
 
 ## Applying changes

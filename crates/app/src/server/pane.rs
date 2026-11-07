@@ -17,6 +17,8 @@ pub struct PanePty {
     master: Box<dyn MasterPty + Send>,
     writer: Box<dyn Write + Send>,
     killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
+    shell_pid: Option<u32>,
+    foreground: Option<(libc::pid_t, String)>,
     pub exit_code: Option<i32>,
     pub closed: bool,
 }
@@ -68,6 +70,7 @@ impl PanePty {
             .spawn_command(command)
             .with_context(|| format!("starting {shell} in {}", cwd.display()))?;
         let killer = child.clone_killer();
+        let shell_pid = child.process_id();
         drop(pair.slave);
         let mut reader = pair
             .master
@@ -84,12 +87,11 @@ impl PanePty {
                 match reader.read(&mut buffer) {
                     Ok(0) => break,
                     Ok(read) => {
-                        let (title, cwd) = tracker.feed(&buffer[..read]);
+                        let (_, cwd) = tracker.feed(&buffer[..read]);
                         if output_tx
                             .send(Msg::PaneOutput {
                                 pane,
                                 bytes: buffer[..read].to_vec(),
-                                title,
                                 cwd,
                             })
                             .is_err()
@@ -120,6 +122,8 @@ impl PanePty {
             master: pair.master,
             writer,
             killer,
+            shell_pid,
+            foreground: None,
             exit_code: None,
             closed: false,
         })
@@ -133,6 +137,35 @@ impl PanePty {
             self.closed = true;
         }
         let _ = self.writer.flush();
+    }
+
+    /// Query the foreground job, never the shell's old output or generated title.
+    pub fn foreground_command(&mut self) -> Option<&str> {
+        let group = self.master.process_group_leader()?;
+        if self.shell_pid == u32::try_from(group).ok() {
+            self.foreground = None;
+            return Some("");
+        }
+        if self
+            .foreground
+            .as_ref()
+            .is_none_or(|(pid, _)| *pid != group)
+        {
+            let output = std::process::Command::new("/bin/ps")
+                .args(["-p", &group.to_string(), "-o", "args="])
+                .output()
+                .ok()?;
+            if !output.status.success() {
+                return None;
+            }
+            self.foreground = Some((
+                group,
+                String::from_utf8_lossy(&output.stdout).trim().to_string(),
+            ));
+        }
+        self.foreground
+            .as_ref()
+            .map(|(_, command)| command.as_str())
     }
 
     pub fn resize(&mut self, rows: u16, cols: u16) {

@@ -1,7 +1,7 @@
 //! Which coding agent owns a pane, and what state that pane is in.
 //!
-//! The runtime only needs the visible text of a pane plus how long it has been
-//! quiet, so detection stays a pure function and is easy to test.
+//! Agent identity uses command metadata; activity uses visible text and quiet
+//! time. These classifiers stay pure so the runtime owns all process queries.
 
 use serde::{Deserialize, Serialize};
 
@@ -25,10 +25,27 @@ pub enum AgentKind {
 impl AgentKind {
     /// Recognises an agent from the foreground command line or a pane title.
     pub fn detect(command: &str, title: &str) -> Option<Self> {
-        command
-            .split_whitespace()
-            .chain(title.split_whitespace())
-            .find_map(|word| Self::from_name(basename(word)))
+        let mut words = command.split_whitespace();
+        let executable = words.next().map(basename).unwrap_or_default();
+        Self::from_name(executable)
+            .or_else(|| {
+                // Interpreters run agent scripts; arbitrary command arguments do not.
+                matches!(
+                    executable,
+                    "node" | "bun" | "python" | "python3" | "sh" | "bash" | "zsh"
+                )
+                .then(|| {
+                    words
+                        .next()
+                        .and_then(|word| Self::from_name(basename(word)))
+                })
+                .flatten()
+            })
+            .or_else(|| {
+                title
+                    .split_whitespace()
+                    .find_map(|word| Self::from_name(basename(word)))
+            })
     }
 
     pub fn from_name(name: &str) -> Option<Self> {
@@ -250,6 +267,8 @@ mod tests {
             Some(AgentKind::Claude)
         );
         assert_eq!(AgentKind::detect("zsh", "~/projects"), None);
+        assert_eq!(AgentKind::detect("cat /tmp/oxide", ""), None);
+        assert_eq!(AgentKind::detect("echo opencode", ""), None);
     }
 
     #[test]

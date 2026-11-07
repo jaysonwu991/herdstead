@@ -15,12 +15,15 @@ const assert = require('node:assert/strict');
   let updateError = null;
   let installError = null;
   let installs = 0;
+  let checks = 0;
   page.on('pageerror', error => failures.push(error.message));
-  const run = runtime(event => { page.evaluate(event => window.__desktopEvent?.(event), event).catch(() => {}); }, { shell: '/bin/zsh', integration: true });
+  const run = runtime(event => { page.evaluate(event => window.__desktopEvent?.(event), event).catch(() => {}); }, { shell: '/bin/zsh', integration: true, home: true });
   try {
     await run.wait(() => true);
+    await run.request({ type: 'action', action: { type: 'rename_workspace', name: 'project' } });
     await page.exposeFunction('__invoke', (name, args) => {
       if (name === 'check_update') {
+        checks++;
         if (updateError) throw new Error(updateError);
         return updateResult;
       }
@@ -41,7 +44,11 @@ const assert = require('node:assert/strict');
     await page.addInitScript(() => {
       window.__TAURI__ = {
         core: { invoke: (name, args) => window.__invoke(name, args) },
-        event: { listen: async (_name, callback) => { window.__desktopEvent = event => callback({ payload: event }); return () => {}; } },
+        event: { listen: async (name, callback) => {
+          if (name === 'herdstead:event') window.__desktopEvent = event => callback({ payload: event });
+          if (name === 'herdstead:command') window.__nativeCommand = command => callback({ payload: command });
+          return () => {};
+        } },
         window: { getCurrentWindow: () => ({ startDragging() {} }) },
       };
     });
@@ -58,6 +65,39 @@ const assert = require('node:assert/strict');
     assert.equal(fontProof, true, 'Powerline and Nerd Font symbols render as glyphs rather than missing-character boxes');
     await page.locator('.pane').waitFor();
     await page.locator('.terminal-row').filter({ hasText: 'HS>' }).first().waitFor();
+    await page.waitForFunction(() => document.querySelector('#workspaces .name').textContent === '~');
+    assert.equal(await page.locator('#workspaces .name').first().textContent(), '~');
+    assert.equal(await page.locator('#workspaces .initial').first().textContent(), '~');
+    await page.waitForFunction(() => document.querySelector('#file-breadcrumb').textContent === '~');
+    for (const selector of ['#find-button', '#settings-button', '.file-filter', '.file-row.directory']) {
+      const size = await page.locator(`${selector} .ui-icon`).first().boundingBox();
+      assert.equal(size.width, 16, `${selector} icon width`);
+      assert.equal(size.height, 16, `${selector} icon height`);
+    }
+    await run.request({ type: 'action', action: { type: 'rename_workspace', name: 'My home' } });
+    await page.waitForFunction(() => document.querySelector('#workspaces .name').textContent === 'My home');
+    await run.request({ type: 'action', action: { type: 'rename_workspace', name: 'project' } });
+    await page.waitForFunction(() => document.querySelector('#workspaces .name').textContent === '~');
+    assert.equal(await page.locator('#workspace-header, #terminal-tools, #pane-list').count(), 0);
+    assert.ok((await page.locator('.pane').boundingBox()).y < 60, 'The terminal starts directly below the tab strip');
+    await page.evaluate(() => { window.__nativeCommand('settings'); window.__nativeCommand('settings'); });
+    await page.locator('#settings[open]').waitFor();
+    assert.equal(await page.locator('#settings h2').textContent(), 'Settings');
+    await page.locator('#close-settings').click();
+    await page.evaluate(() => window.__nativeCommand('check-for-updates'));
+    await page.locator('#settings[open] #update-status').filter({ hasText: 'You are up to date.' }).waitFor();
+    assert.equal(checks, 1, 'Native update command checks for an update');
+    assert.equal(installs, 0, 'Native update command never installs automatically');
+    await page.locator('#close-settings').click();
+    fs.mkdirSync(path.resolve(__dirname, '../test-results'), { recursive: true });
+    await page.screenshot({ path: path.resolve(__dirname, '../test-results/workspace.png') });
+    const agentPath = path.join(run.cwd, 'opencode');
+    fs.writeFileSync(agentPath, '#!/bin/sh\nsleep "$@"\n', { mode: 0o755 });
+    await run.request({ type: 'action', action: { type: 'send_text', text: './opencode 60', submit: true } });
+    await page.waitForFunction(() => document.querySelector('#agents strong')?.textContent === 'opencode');
+    assert.match(await page.locator('#agents small').textContent(), /^~ · /);
+    await run.request({ type: 'action', action: { type: 'key', input: { key: { char: 'c' }, mods: { ctrl: true } } } });
+    await page.waitForFunction(() => document.querySelector('#agent-count').textContent === '0' && document.querySelector('.pane-header .title').textContent === 'shell');
     assert.equal(await page.locator('#composer').count(), 0);
     await run.wait(event => { const p = event.snapshot.panes.find(p => p.id === event.snapshot.focused); const g = p?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable zsh prompt');
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input' && document.body.classList.contains('terminal-focused'));
@@ -93,7 +133,8 @@ const assert = require('node:assert/strict');
       document.querySelector('#terminal-input').dispatchEvent(event);
       return event.defaultPrevented;
     }), false, 'Unclaimed Cmd shortcuts must stay with the native menu');
-    await page.locator('#split-right').click(); await page.waitForFunction(() => document.querySelectorAll('.pane').length === 2);
+    await page.locator('.pane').first().hover();
+    await page.locator('.pane-split-right').first().click(); await page.waitForFunction(() => document.querySelectorAll('.pane').length === 2);
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input');
     const stability = await page.evaluate(async event => {
       const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
@@ -139,9 +180,13 @@ const assert = require('node:assert/strict');
     await run.wait(event => { const g = event.snapshot.panes.find(p => p.id === event.snapshot.focused)?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'prompt after highlighted cat');
     await page.keyboard.type('printf "# Output heading\\n\\n**bold output**\\n"'); await page.keyboard.press('Enter');
     await page.locator('.terminal-row').filter({ hasText: 'bold output' }).first().waitFor();
+    await page.locator('#settings-button').click();
     await page.locator('#rich-output-button').click();
+    await page.locator('#close-settings').click();
     await page.locator('.terminal-row').filter({ hasText: /^\*\*bold output\*\*$/ }).first().waitFor();
+    await page.locator('#settings-button').click();
     await page.locator('#rich-output-button').click();
+    await page.locator('#close-settings').click();
     await page.waitForFunction(() => [...document.querySelectorAll('.terminal-row span')].some(span => span.textContent === 'bold output' && span.style.fontWeight === '700'));
     await page.locator('#file-tree .file-row').filter({ hasText: 'README.md' }).click();
     await page.locator('.viewer-screen').filter({ hasText: 'Desktop workspace' }).waitFor();

@@ -55,7 +55,7 @@ integration. Alpine/musl and Windows are not supported.
 
 ## Update failures
 
-Open Appearance and check again. The release's `latest.json` must be reachable,
+Open Settings and check again. The release's `latest.json` must be reachable,
 contain your platform, and name a newer version. Before the first desktop
 release, this endpoint is absent. A signature failure means the update does not
 match the public key built into the installed app; install a trusted full
@@ -93,7 +93,7 @@ the desktop's zsh preference. Original aliases and plugins are preserved;
 `hcat` and `hmd` explicitly select rich readers. Agent-owned input uses the
 agent's own completion.
 
-Use Appearance for desktop themes and fonts, and the bundled Nerd Font for
+Use Settings for desktop themes and fonts, and the bundled Nerd Font for
 prompt glyphs. Old TUI prefix bindings and mouse/sidebar configuration do not
 control the desktop. See [keys](keys.md) and [configuration](configuration.md).
 
@@ -101,6 +101,6 @@ control the desktop. See [keys](keys.md) and [configuration](configuration.md).
 
 Viewer files must be UTF-8 and no larger than 4 MiB. Source files containing
 NULs are refused. Use the ordinary shell tools for binary or larger files.
-Turn Rich output off for literal terminal rows; use `md` for complete Markdown
+Disable Rich terminal output in Settings for literal terminal rows; use `md` for complete Markdown
 layout. Find searches visible output, not all scrollback. Mouse reporting is
 reserved for desktop controls rather than forwarded to terminal programs.
