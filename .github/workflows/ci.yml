@@ -53,6 +53,7 @@ jobs:
       - run: pnpm test
         working-directory: desktop
       - name: Install browser for desktop E2E
+        timeout-minutes: 5
         if: runner.os == 'Linux'
         run: pnpm exec playwright install --with-deps chromium
         working-directory: desktop
