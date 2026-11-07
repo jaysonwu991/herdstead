@@ -68,13 +68,14 @@
     return row;
   }
   // Keep unchanged rows in place so output bursts do not destroy selections.
+  const rowSignatures = new WeakMap();
   function updateRows(container, rows, document, onLink) {
     rows.forEach((runs, index) => {
       const signature = JSON.stringify(runs);
       const existing = container.children[index];
-      if (existing?.dataset.signature === signature) return;
+      if (existing && rowSignatures.get(existing) === signature) return;
       const row = rowElement(runs, document, onLink);
-      row.dataset.signature = signature;
+      rowSignatures.set(row, signature);
       if (existing) existing.replaceWith(row); else container.append(row);
     });
     while (container.children.length > rows.length) container.lastElementChild.remove();

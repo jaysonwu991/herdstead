@@ -33,6 +33,7 @@ function el(tag, className, text) {
   const node = document.createElement(tag); if (className) node.className = className;
   if (text !== undefined) node.textContent = text; return node;
 }
+function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
 function paneIcon(button, kind) {
   const paths = {
     right: 'M4 5h16v14H4z M12 5v14',
@@ -150,9 +151,9 @@ let chromeSignature = '';
 function render() {
   if (!state.snapshot) return;
   // Terminal frames change frequently; rebuild chrome only when its state changes.
-  const signature = JSON.stringify([state.snapshot.workspaces, state.snapshot.focused, state.snapshot.panes.map(p => [p.id, p.title, p.status]), state.snapshot.zoomed]);
+  const signature = JSON.stringify([state.snapshot.session, state.snapshot.active_workspace, state.snapshot.workspaces, state.snapshot.focused, state.snapshot.panes.map(p => [p.id, p.title, p.status]), state.snapshot.zoomed]);
   if (signature !== chromeSignature) { chromeSignature = signature; renderChrome(); }
-  $('#dimensions').textContent = focused()?.grid ? `${focused().grid.cols} × ${focused().grid.rows} · UTF-8` : 'Rich viewer';
+  setText($('#dimensions'), focused()?.grid ? `${focused().grid.cols} × ${focused().grid.rows} · UTF-8` : 'Rich viewer');
   const snap = state.snapshot, live = new Set(snap.panes.map(p => p.id));
   for (const [id, view] of state.panes) if (!live.has(id)) { view.node.remove(); state.panes.delete(id); state.viewerCache.delete(id); }
   $('#panes .connecting')?.remove();
@@ -188,19 +189,27 @@ function render() {
       node.addEventListener('wheel', safely(event => {
         if (pane.kind === 'viewer') return;
         event.preventDefault();
-        return action({ type: 'scroll_pane', pane: pane.id, delta: event.deltaY < 0 ? 3 : -3, page: false });
+        if (event.deltaY) queueScroll(pane.id, event.deltaY < 0 ? 3 : -3);
       }), { passive: false });
       $('#panes').append(node); view = { node, title, cwd, offset, screen, lines, cursor, zoom }; state.panes.set(pane.id, view);
     }
     const cell = state.cell, rect = pane.rect;
-    Object.assign(view.node.style, { left: `${(rect.x - snap.area.x) * cell.width}px`, top: `${(rect.y - snap.area.y) * cell.height}px`, width: `${rect.width * cell.width}px`, height: `${rect.height * cell.height}px` });
-    view.node.classList.toggle('focused', pane.id === snap.focused);
-    view.zoom.setAttribute('aria-pressed', snap.zoomed && pane.id === snap.focused);
-    view.zoom.title = snap.zoomed ? 'Restore pane layout' : 'Zoom pane';
-    view.zoom.setAttribute('aria-label', view.zoom.title);
-    view.title.textContent = pane.title;
-    view.cwd.textContent = pane.cwd; view.cwd.title = pane.cwd;
-    view.offset.textContent = pane.grid?.offset ? `↑ ${pane.grid.offset} · click for live` : pane.exit_code !== null ? `exit ${pane.exit_code}` : '';
+    const geometry = JSON.stringify([rect, snap.area, cell]);
+    if (geometry !== view.geometry) {
+      view.geometry = geometry;
+      Object.assign(view.node.style, { left: `${(rect.x - snap.area.x) * cell.width}px`, top: `${(rect.y - snap.area.y) * cell.height}px`, width: `${rect.width * cell.width}px`, height: `${rect.height * cell.height}px` });
+    }
+    const metadata = JSON.stringify([pane.title, pane.cwd, pane.grid?.offset, pane.exit_code, pane.id === snap.focused, snap.zoomed]);
+    if (metadata !== view.metadata) {
+      view.metadata = metadata;
+      view.node.classList.toggle('focused', pane.id === snap.focused);
+      view.zoom.setAttribute('aria-pressed', snap.zoomed && pane.id === snap.focused);
+      view.zoom.title = snap.zoomed ? 'Restore pane layout' : 'Zoom pane';
+      view.zoom.setAttribute('aria-label', view.zoom.title);
+      setText(view.title, pane.title);
+      setText(view.cwd, pane.cwd); view.cwd.title = pane.cwd;
+      setText(view.offset, pane.grid?.offset ? `↑ ${pane.grid.offset} · click for live` : pane.exit_code !== null ? `exit ${pane.exit_code}` : '');
+    }
     view.offset.onclick = () => safely(() => action({ type: 'scroll_to_bottom', pane: pane.id }))();
     const onLink = link => safely(() => openLink(link, pane.cwd))();
     if (pane.grid) {
@@ -211,6 +220,20 @@ function render() {
     } else safely(() => renderViewer(pane, view))();
   }
   renderDividers(); find();
+}
+const pendingScroll = new Map();
+let scrollPending = false;
+function queueScroll(pane, delta) {
+  pendingScroll.set(pane, (pendingScroll.get(pane) || 0) + delta);
+  if (scrollPending) return;
+  scrollPending = true;
+  requestAnimationFrame(() => {
+    scrollPending = false;
+    for (const [pane, delta] of pendingScroll) {
+      if (delta && state.panes.has(pane)) safely(() => action({ type: 'scroll_pane', pane, delta, page: false }))();
+    }
+    pendingScroll.clear();
+  });
 }
 async function renderViewer(pane, view) {
   const width = Math.max(4, pane.rect.width - 2), key = `${pane.viewer?.path}:${width}:${state.theme}`;
@@ -237,9 +260,13 @@ async function openLink(link, base) {
   return action({ type: 'open_viewer', path });
 }
 async function focusPane(id) { await action({ type: 'focus_pane', pane: id }); terminalFocus(); }
+let dividerSignature = '';
 function renderDividers() {
   // Keep handles stable during pointer capture.
   if (document.body.dataset.resizing) return;
+  const signature = JSON.stringify([state.snapshot.panes.map(pane => [pane.id, pane.rect]), state.cell]);
+  if (signature === dividerSignature) return;
+  dividerSignature = signature;
   document.querySelectorAll('.resize-handle').forEach(node => node.remove());
   const panes = state.snapshot.panes, cell = state.cell;
   for (let i = 0; i < panes.length; i++) for (let j = i + 1; j < panes.length; j++) {
@@ -323,8 +350,11 @@ async function toggleRich() {
   $('#rich-output-button').setAttribute('aria-pressed', state.rich);
 }
 async function addWorkspace() { const dir = await api.folder(); if (dir) await action({ type: 'new_workspace', dir }); }
+let findQuery = '';
 function find() {
   const query = $('#find-input').value.toLowerCase(); let count = 0;
+  if (!query && !findQuery) return;
+  findQuery = query;
   for (const view of state.panes.values()) for (const row of view.lines.children) {
     const match = !!query && row.textContent.toLowerCase().includes(query);
     row.classList.toggle('match', match); if (match) count++;

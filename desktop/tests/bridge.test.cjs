@@ -2,6 +2,21 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { runtime } = require('./runtime.cjs');
 const plain = event => Object.values(event.screens).flat().map(row => row.map(run => run.text).join('')).join('\n');
+test('output bursts deliver the final screen after a slow consumer resumes', { timeout: 30000 }, async () => {
+  const run = runtime();
+  try {
+    await run.wait(() => true, 'initial shell');
+    run.child.stdout.pause();
+    run.child.stdin.write(`${JSON.stringify({ id: 1000, type: 'action', action: { type: 'send_text', text: "i=0; while [ $i -lt 2000 ]; do printf 'BURST-%04d\\n' $i; i=$((i+1)); done; printf 'BURST-DONE\\n'", submit: true } })}\n`);
+    await new Promise(resolve => setTimeout(resolve, 250));
+    run.child.stdout.resume();
+    const event = await run.wait(event => /^BURST-DONE$/m.test(plain(event)), 'final burst output');
+    assert.match(plain(event), /^BURST-1999$/m);
+    await run.request({ type: 'action', action: { type: 'send_text', text: "printf 'RESPONSIVE\\n'", submit: true } });
+    await run.wait(event => /^RESPONSIVE$/m.test(plain(event)), 'input after output burst');
+  } finally { run.child.stdout.resume(); await run.close(); }
+});
+
 test('detaching finishes an in-flight snapshot before closing stdout', { timeout: 30000 }, async () => {
   const events = [];
   const run = runtime(event => events.push(event.type));
