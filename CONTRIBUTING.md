@@ -56,8 +56,9 @@ configuration/state. Preserve the docs' no-raw-HTML convention.
 
 ## Desktop releases
 
-Release Drafter prepares notes for merged PRs. Publish a draft, push a `v*` tag,
-or manually dispatch **Desktop release** with an existing version tag. The tag
+Release Drafter prepares notes for merged PRs. Push a `v*` tag or manually
+dispatch **Desktop release** with an existing version tag. Publishing a release
+does not trigger another build. The tag
 must point to code containing the desktop workflow. GitHub's default workflow
 token does not trigger other workflows when it creates a tag/release; use manual
 dispatch when publishing through such automation.
