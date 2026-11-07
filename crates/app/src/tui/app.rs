@@ -1,4 +1,4 @@
-//! Client-side state: focus, the composer, overlays and input handling.
+//! Client-side input routing, the composer, overlays and presentation state.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -105,7 +105,7 @@ pub struct App {
     pub last_pane_area: Option<Rect>,
     pub hover_link: Option<Link>,
     pub drag: Option<Drag>,
-    /// Files the composer has opened, newest last, for `/open <n>` history.
+    /// Paths opened through the client, newest last.
     pub opened: Vec<PathBuf>,
 }
 

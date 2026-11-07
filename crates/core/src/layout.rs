@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::geom::{Axis, Dir, Rect};
 use crate::ids::PaneId;
 
-/// The direction a split pushes the existing pane.
+/// The divider orientation; the new pane is placed right of or below the old one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SplitDir {
@@ -31,8 +31,8 @@ impl SplitDir {
     }
 }
 
-/// A node of the pane tree. Splits own a ratio in `0.05..=0.95`; the divider
-/// cell between the two children is not part of either child's rect.
+/// A node of the pane tree. Layout clamps ratios to `0.05..=0.95` and reserves
+/// a divider cell when the split axis has room for at least three cells.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Node {
@@ -301,8 +301,7 @@ pub fn split_areas(area: Rect, dir: SplitDir, ratio: f32) -> (Rect, Rect) {
     }
 }
 
-/// The pane whose centre is nearest to `from` in direction `dir`, requiring
-/// overlap on the perpendicular axis so focus follows what the eye sees.
+/// The nearest pane in `dir`, preferring perpendicular overlap before distance.
 pub fn neighbor(placements: &[PanePlacement], from: PaneId, dir: Dir) -> Option<PaneId> {
     let current = placements.iter().find(|p| p.pane == from)?.rect;
     let (cx, cy) = current.center();

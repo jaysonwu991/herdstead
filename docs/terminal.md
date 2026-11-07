@@ -36,9 +36,8 @@ go there, or use the keys below.
 A split divides the space in half; the divider is one cell wide. Divider positions
 are stored as ratios, so a resize of the terminal keeps the proportions.
 
-**Resize with the mouse:** press on a divider and drag. **Resize with the
-keyboard:** there is no default binding, but any action can be rebound (see
-[keys](keys.md)) — the runtime accepts `ResizePane { dir, cells }`.
+**Resize with the mouse:** press on a divider and drag. The TUI has no keyboard
+resize action to bind. Protocol clients can send `ResizePane { dir, cells }`.
 
 New panes start in the focused pane's working folder, with the shell from
 `shell` (or `$SHELL`, or `/bin/sh`). Closing the last pane of the last tab starts
@@ -83,8 +82,8 @@ a pane, so an application inside a pane never sees a click.
 
 ## Output, scrollback and links
 
-Each pane is a real terminal: a full VT screen with truecolor, wide characters,
-cursor shapes, the alternate screen, application cursor keys and bracketed paste,
+Each pane is a real terminal: a full VT screen with truecolour, wide characters,
+a visible cursor position, the alternate screen, application cursor keys and bracketed paste,
 kept in up to `scrollback` rows (default 5000). The cursor follows the pane's own
 when the pane is focused and live. Scrollback offsets show `↑n` in the pane's
 title, and writing resumes the live view.
@@ -100,9 +99,9 @@ A URL is drawn in the link colour and underlined; a path only becomes a link whe
 it resolves, so prose that looks like a path stays prose. Link targets travel with
 the characters, so a wrapped URL is still clickable on every row.
 
-The CLI does the same for its own output: `herdstead cat` and friends emit OSC 8
-hyperlinks, which iTerm2, Ghostty, Kitty, WezTerm and VS Code's terminal make
-clickable.
+The CLI emits links from Markdown and trees as OSC 8
+hyperlinks for supporting terminals. Highlighted source does not currently
+attach link targets; see [troubleshooting](troubleshooting.md#links-are-not-clickable).
 
 ## What a pane's environment gets
 
@@ -120,8 +119,9 @@ them — bash, zsh, fish, and most prompts — keeps the folder and title curren
 ## Rich output and zsh integration
 
 Ordinary plain output can render headings, inline Markdown and fenced code in
-place. Row coordinates remain stable, and input, existing ANSI styles, wrapped
-rows and alternate-screen programs are preserved. The desktop offers a raw-output
+place. Row coordinates remain stable; block interpretation skips the cursor row,
+existing ANSI styles, wrapped rows and alternate-screen programs. Editable
+input receives separate inline styling. The desktop offers a raw-output
 toggle. For full Markdown document layout, pipe to `herdstead render`.
 
 The desktop's zsh integration adds native `@path` completion and safely quoted

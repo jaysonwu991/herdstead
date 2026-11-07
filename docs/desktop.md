@@ -9,7 +9,7 @@ TUI can attach to that same session.
 
 Install a current stable Rust toolchain, Node.js 22 or newer, and the
 [Tauri system prerequisites](https://v2.tauri.app/start/prerequisites/).
-The terminal-only binary still needs no desktop system libraries.
+The terminal-only binary does not require the Tauri webview dependencies.
 
 From the repository root:
 
@@ -50,7 +50,7 @@ continues to install the terminal binary.
 ## The shell and rich terminal
 
 The terminal is the input surface. There is no separate desktop composer.
-New desktop sessions prefer zsh and add shell integration after loading your
+New desktop daemons prefer zsh and add shell integration after loading your
 normal startup files. An explicit `shell` in Herdstead's config takes precedence.
 A zsh pane is a login shell, so `.zprofile` PATH setup is available too.
 
@@ -77,7 +77,7 @@ References are highlighted in the command line, with missing paths shown in red
 reference delegates to your existing Tab widget.
 
 ```zsh
-cat @src/main.rs
+cat @crates/app/src/main.rs
 cd @docs/
 printf '%s\n' @"a file with spaces.rs"
 ```
@@ -113,12 +113,12 @@ are excluded from copied text and never become part of shell input.
 Interactive single-file `cat` reads render in place:
 
 ```zsh
-cat README.md                 # rendered Markdown
-cat src/main.rs               # programming syntax highlighting
-cat @src/main.rs              # completion + safe file reference
-md README.md                  # explicit Markdown renderer
-git show HEAD:README.md | md   # render Markdown from command output
-tree .                        # folder tree
+cat README.md                    # rendered Markdown
+cat crates/app/src/main.rs        # programming syntax highlighting
+cat @crates/app/src/main.rs       # completion + safe file reference
+md README.md                     # explicit Markdown renderer
+git show HEAD:README.md | md      # render Markdown from command output
+tree .                           # folder tree
 ```
 
 Existing `cat` and `md` aliases/functions are preserved; `hcat file` and
@@ -133,8 +133,9 @@ Markdown document, including tables and fenced code.
 **Rich output** automatically recognises headings, emphasis, inline code,
 lists, quotes, links and language-labelled code fences in ordinary terminal
 output. It preserves the terminal's row coordinates: no rows are inserted or
-removed. The active input row, soft-wrapped rows, existing ANSI-styled output
-and alternate-screen applications stay untouched. For complete document layout,
+removed. Block interpretation skips the cursor row, soft-wrapped rows, existing
+ANSI-styled output and alternate-screen applications. Input styling is applied
+separately, with source delimiters preserved. For complete document layout,
 including tables and reflowing paragraphs, use `md` or `herdstead render`.
 Toggle **Rich output** off whenever literal output is preferable.
 
@@ -197,6 +198,7 @@ From the repository root, first run the standard workspace checks:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+cargo build                     # debug binary used by npm test
 ```
 
 Then:

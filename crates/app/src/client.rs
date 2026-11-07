@@ -31,7 +31,7 @@ impl Connection {
         self.stream.flush().context("flushing a request")
     }
 
-    /// Reads the next event, skipping blank keep-alive lines.
+    /// Reads the next event, ignoring blank lines.
     pub fn next_event(&mut self) -> Result<Event> {
         loop {
             let mut line = String::new();

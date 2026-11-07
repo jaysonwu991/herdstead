@@ -109,7 +109,7 @@ pub fn agent_from_text(text: &str) -> Option<AgentKind> {
         ("opencode", AgentKind::OpenCode),
         ("oxide", AgentKind::Oxide),
     ];
-    // Later signatures win, so a specific banner beats a generic word.
+    // When multiple banners remain visible, the last matching signature wins.
     let mut found = None;
     for (needle, agent) in SIGNATURES {
         if lower.contains(needle) {

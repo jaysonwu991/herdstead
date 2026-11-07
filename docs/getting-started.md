@@ -9,7 +9,7 @@ curl -fsSL https://raw.githubusercontent.com/jaysonwu991/herdstead/main/install.
 That script is worth reading before you trust it
 ([source](https://github.com/jaysonwu991/herdstead/blob/main/install.sh)): it
 asks `uname` for the platform, downloads the archive from the release, checks it
-against the `.sha256` beside it, and puts `herdstead` in `~/.local/bin`. If that
+against the `.sha256` beside it when available, and puts `herdstead` in `~/.local/bin`. If that
 folder is not on your `PATH` it prints the line to add. macOS (arm64 and x64)
 and Linux (x64 and arm64) are what it covers, and each of those has an archive
 attached to every [release](https://github.com/jaysonwu991/herdstead/releases).
@@ -44,8 +44,8 @@ cargo build --release          # target/release/herdstead
 # or: cargo install --path crates/app
 ```
 
-`cargo build --release` takes about 15 seconds and produces a 5 MB binary with no
-runtime dependencies.
+Build time and binary size depend on the toolchain and machine. The terminal
+binary requires no desktop libraries; prebuilt Linux binaries require glibc.
 
 ## Desktop window
 
@@ -104,7 +104,7 @@ label it in the sidebar with a status: `●` working, `◆` blocked on you, `○
 Then use the composer instead of typing into the pane:
 
 ```
-ctrl+b :  explain @src/render/markdown.rs and add a test for tables
+ctrl+b :  explain @crates/render/src/markdown.rs and add a test for tables
 ```
 
 `@` completes paths from the pane's folder; `Tab` accepts, `Enter` sends. The
@@ -117,7 +117,7 @@ Click a path in the output while holding the link modifier (Cmd on macOS), or us
 the composer:
 
 ```
-/tree src
+/tree crates
 /md README.md
 /cat Cargo.toml
 ```
@@ -131,7 +131,7 @@ The same renderers are available as ordinary commands, so they work in scripts
 and pipes:
 
 ```bash
-herdstead cat src/main.rs        # syntax highlighting, line numbers
+herdstead cat crates/app/src/main.rs        # syntax highlighting, line numbers
 herdstead tree crates            # folder tree with sizes
 herdstead md README.md           # rendered Markdown
 herdstead preview assets/        # whatever the path is, as a viewer would
@@ -151,7 +151,12 @@ starts anything, and points at these commands instead.
 | themes | `~/.config/herdstead/themes/*.json` |
 | saved layouts | `~/.local/state/herdstead/sessions/<name>.json` |
 | daemon logs | `~/.local/state/herdstead/logs/<name>.log` |
-| sockets | `/tmp/herdstead-<uid>/<name>.sock` |
+| sockets | `$XDG_RUNTIME_DIR/herdstead/<name>.sock`, or the temporary directory fallback below |
+
+These are the default config and state paths. XDG and `HERDSTEAD_*_DIR`
+overrides are described in [configuration](configuration.md). Without
+`XDG_RUNTIME_DIR`, sockets live in the system temporary directory under
+`herdstead-<uid>/` (often `/tmp`, or `$TMPDIR` on macOS).
 
 Write a starter config with `herdstead init`; see
 [configuration](configuration.md) for every key. To stop a session, keep its

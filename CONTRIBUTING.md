@@ -13,8 +13,8 @@ in agreement. For the user-facing picture, start at [README.md](README.md) and
 - macOS or Linux. Windows is not supported: the daemon and client talk over a
   Unix socket, and the integration tests spawn PTYs.
 
-For the terminal binary, no system libraries are needed. Syntax highlighting and PTY handling are pure
-Rust.
+The terminal binary needs no desktop toolkit libraries. PTY handling uses the
+operating system's terminal facilities; prebuilt Linux binaries require glibc.
 
 The optional Tauri desktop app has separate prerequisites and checks in
 [Desktop](docs/desktop.md).
@@ -41,16 +41,20 @@ cargo run -- cat README.md     # the CLI, no TUI needed
 |---|---|
 | `cargo build --release` | the binary at `target/release/herdstead` |
 | `cargo test --workspace` | the whole suite, including the daemon and PTY tests |
-| `cargo test -p herdstead-core` | one crate, when iterating on the model or renderers |
+| `cargo test -p herdstead-core` | model, layout, protocol and config tests |
+| `cargo test -p herdstead-render` | renderer tests |
 | `cargo clippy --workspace --all-targets -- -D warnings` | lint; warnings are errors |
 | `cargo fmt --all` | format |
+| `cargo fmt --all --check` | check formatting without editing |
 | `cargo run -- ls` | inspect live sessions while developing |
-| `cargo run -- kill <name>` | clean up a session a test or a run left behind |
+| `cargo run -- kill <name>` | stop a development session in the current runtime directory |
 | `scripts/set-version.sh v1.2.3` | stamp the workspace version from a tag, as release CI does |
 | `scripts/test-install.sh` | run `install.sh` against fixtures, with no network |
 
 The integration tests start their own daemons in a temporary state folder and
-clean up after themselves, so they do not touch your real session.
+clean up after themselves, so they do not touch your real session. An interrupted
+run may leave a daemon behind; use its fixture's config, state and runtime
+directory overrides when listing or stopping it (see [AGENTS.md](AGENTS.md)).
 
 ## Layout
 
@@ -88,9 +92,9 @@ Three layers, and new behaviour belongs in the right one:
 
 1. **Unit tests** next to the code in `core` and `render` — geometry, parsing,
    wrapping, themes, config, renderers. Most changes need one.
-2. **`tests/runtime.rs`** — a real daemon: start it, connect, send actions, assert
+2. **`crates/app/tests/runtime.rs`** — a real daemon: start it, connect, send actions, assert
    snapshots. Use it for protocol, PTY, scrollback, restore and viewer changes.
-3. **`tests/client.rs`** — the real TUI in a PTY: keys, drawing, the composer,
+3. **`crates/app/tests/client.rs`** — the real TUI in a PTY: keys, drawing, the composer,
    viewers, detach and resize. Use it when the change is visible.
 
 A change to key handling is not verified by a unit test alone: the end-to-end

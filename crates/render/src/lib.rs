@@ -1,9 +1,9 @@
 //! Rich text rendering for herdstead: Markdown, syntax highlighting, folder
 //! trees, link decoration, the composer and ANSI output.
 //!
-//! Everything here is pure: renderers take text plus a [`Theme`] and return
-//! styled [`Line`]s. The terminal client maps those rows into ratatui, and the
-//! CLI prints them as ANSI, so both front-ends draw the same thing.
+//! Drawing functions take text plus a [`Theme`] and return styled [`Line`]s.
+//! File-loading helpers and tree scanning perform IO. The TUI maps rows into
+//! ratatui, the desktop into styled spans and the CLI into ANSI output.
 
 pub mod ansi;
 pub mod code;
@@ -22,7 +22,7 @@ pub use style::{Line, Link, Span, Style};
 use herdstead_core::Theme;
 
 /// Renders a file the way a viewer pane shows it: Markdown is rendered, other
-/// text is syntax-highlighted, and binary files report why they cannot open.
+/// text is syntax-highlighted. Files must be UTF-8; code reads also reject NULs.
 pub fn render_file(
     path: &std::path::Path,
     width: usize,

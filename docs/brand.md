@@ -26,7 +26,7 @@ pane you are looking at.
  └─────┴───┘
 ```
 
-It is built from six shapes on a 96-unit grid, which is why it still reads at
+It is built from five drawing elements on a 96-unit grid, which is why it still reads at
 16 px.
 
 ## Assets
@@ -86,4 +86,4 @@ GitHub has no API for that image; set it in **Settings → General → Social
 preview**. To rebuild it, render a 1280 × 1280 square with the design centred in
 the middle 640 rows and crop the middle band with `sips -c 640 1280` —
 `qlmanage` always pads its thumbnail to a square, so an exact-size band is the
-reliable way to get 16:9 out of it.
+reliable way to get a 2:1 image out of it.

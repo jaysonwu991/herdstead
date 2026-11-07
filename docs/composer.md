@@ -5,7 +5,7 @@ message for the focused agent, with the conveniences of a chat composer rather
 than a shell prompt.
 
 ```
-❯ explain @src/render/markdown.rs — why does a wrapped link keep its target?
+❯ explain @crates/render/src/markdown.rs — why does a wrapped link keep its target?
 ```
 
 The bar is always visible. When it is closed it shows the hint; press `ctrl+b :`
@@ -15,14 +15,14 @@ to focus it.
 
 | key | effect |
 |---|---|
-| `Enter` | send the text to the focused shell pane (or run a slash command) |
+| `Enter` | accept an open completion; otherwise send or run a slash command |
 | `Shift+Enter` | insert a newline |
 | `Tab` | accept the `@path` completion; with no completion, insert two spaces |
 | `Esc` | close the composer and return input to the pane |
 | `←` / `→` | move the caret; with `Ctrl`, by word |
-| `Home` / `End` | start / end of the line |
+| `Home` / `End` | start / end of the whole message |
 | `Up` / `Down` | previous / next completion, or the previous / next line |
-| `Ctrl+A` / `Ctrl+E` | start / end of the line |
+| `Ctrl+A` / `Ctrl+E` | start / end of the whole message |
 | `Ctrl+U` / `Ctrl+K` | delete before / after the caret |
 | `Ctrl+W` | delete the previous word |
 | `Ctrl+P` | toggle the Markdown preview |
@@ -61,11 +61,14 @@ relative `@src/main.rs` is correct from the pane's point of view.
 
 The composer parses inline Markdown as you type: `**bold**`, `*italic*`,
 `~~strike~~`, `` `code` ``, links, bare URLs and `@mentions` all take their
-style, with the markers still visible so the text stays editable.
+style. The TUI currently renders recognised delimiters away in its display,
+while retaining them in the text sent to the pane. This differs from the
+desktop shell input; see [troubleshooting](troubleshooting.md#composer-markdown-markers-disappear).
 
-`Ctrl+P` (or `ctrl+b m`) turns the composer into a live Markdown preview: the
-same renderer as a Markdown viewer pane draws the text above the input, with
-headings, lists, tables and highlighted code. Toggle it off to keep typing.
+`Ctrl+P` toggles the preview while composing; from a pane, `ctrl+b m` opens
+the composer with preview enabled. The Markdown viewer renderer draws the text
+above the input, with headings, lists, tables and highlighted code. You can keep
+typing while the preview is open.
 
 ## Slash commands
 
@@ -84,8 +87,8 @@ composer stays open afterwards.
 | `/tree [path]` | open a folder tree (default `.`) |
 | `/cat <file>` | open a file highlighted |
 | `/md <file>` | open a file rendered |
-| `/rename-tab <name>` | rename the current tab |
-| `/rename-workspace <name>` | rename the current workspace |
+| `/rename-tab [name]` | open a rename prompt, optionally prefilled |
+| `/rename-workspace [name]` | open a rename prompt, optionally prefilled |
 | `/scroll-top` / `/scroll-bottom` | move the focused pane's scrollback |
 | `/help` | the keybinding list |
 | `/detach` | detach from the session |
@@ -96,7 +99,7 @@ agent; an unknown command says which one it did not recognise.
 ## Examples
 
 ```
-explain what changed in @src/app.rs and why the retry loop exits early
+explain what changed in @crates/app/src/tui/app.rs and why the retry loop exits early
 
 /split h
 /tree crates/render/src

@@ -16,7 +16,7 @@ syntax-highlighted files and folder trees.
 [**Documentation**](docs/README.md) · [getting started](docs/getting-started.md) ·
 [sessions](docs/sessions.md) · [composer](docs/composer.md) ·
 [viewers](docs/viewers.md) · [themes](docs/themes.md) ·
-[configuration](docs/configuration.md) · [keys](docs/keys.md) ·
+[configuration](docs/configuration.md) · [desktop](docs/desktop.md) · [keys](docs/keys.md) ·
 [architecture](docs/architecture.md) · [troubleshooting](docs/troubleshooting.md)
 · [brand](docs/brand.md)
 
@@ -35,7 +35,7 @@ terminal.
 |---|---|
 | panes, tabs, workspaces, detach/attach | yes |
 | session restored after a restart | yes (`restore = true`) |
-| terminal output | full VT screen per pane, truecolor, scrollback |
+| terminal output | full VT screen per pane, truecolour, scrollback |
 | links | URLs and file paths are detected, clickable, and emitted as OSC 8 |
 | themes | six built-ins plus JSON themes and per-slot overrides |
 | Markdown | composer preview, `/md`, `herdstead md`, and viewer panes |
@@ -50,8 +50,8 @@ curl -fsSL https://raw.githubusercontent.com/jaysonwu991/herdstead/main/install.
 ```
 
 The script asks `uname` what this machine is, downloads the matching archive,
-checks it against the `.sha256` the release publishes beside it, and installs
-`herdstead` into `~/.local/bin` — no `sudo`, and it names the folder if that is
+checks it against the `.sha256` the release publishes beside it when available,
+and installs `herdstead` into `~/.local/bin` — no `sudo`, and it names the folder if that is
 not on your `PATH`. macOS (arm64 and x64) and Linux (x64 and arm64) are the
 platforms it knows; a musl system (Alpine) is refused rather than handed a
 glibc binary. `HERDSTEAD_INSTALL_DIR=/usr/local/bin` puts it elsewhere,
@@ -86,8 +86,9 @@ cargo build --release          # target/release/herdstead
 ```
 
 Requires a recent Rust toolchain (1.82 or newer). macOS and Linux (the client
-and daemon talk over a Unix socket). `cargo build --release` takes about 15
-seconds and produces a 5 MB binary with no runtime dependencies.
+and daemon talk over a Unix socket). Build time and binary size depend on the
+toolchain and machine. The terminal binary requires no desktop libraries;
+prebuilt Linux binaries require glibc.
 
 Attaching needs an interactive terminal. Run from a pipe or a script,
 `herdstead` refuses before it starts a session and points at the
@@ -132,7 +133,7 @@ Then:
  │ herdstead   │ ┌ ✳ claude ● ────────────────────────────────────────────┐  │
  │              │ │ ✓ cargo test — all green                               │  │
  │ WORKSPACES   │ │ see https://herdr.dev/docs and src/main.rs             │  │
- │  ● herdstead│ │ @src/render/markdown.rs                                │  │
+ │  ● herdstead│ │ @crates/render/src/markdown.rs                        │  │
  │  ○ oxide     │ └────────────────────────────────────────────────────────┘  │
  │              │ ┌ tree src ───────────────────────────────────────────────┐  │
  │ TABS         │ │ src/            42 files · 6 folders                    │  │
@@ -159,16 +160,15 @@ looks like a path never turns into one.
 - **Open one:** hold the link modifier (Cmd on macOS, configurable) and click.
   URLs go to the browser; paths open in a viewer pane — a folder becomes a tree,
   Markdown renders, everything else is highlighted.
-- **Without a mouse:** `herdstead cat` emits real OSC 8 hyperlinks, so `cat`'s
-  output is clickable in iTerm2, Ghostty, Kitty, WezTerm, VS Code's terminal and
-  any other OSC 8 terminal.
+- **Without a mouse:** `herdstead md` and `herdstead tree` emit OSC 8 hyperlinks
+  for their rendered links, which supporting terminals can open.
 - **Hover feedback:** the status bar names the target under the pointer.
 
 More: [panes and output](docs/terminal.md), [viewers](docs/viewers.md).
 
 ### 2. Themes
 
-Six built-in palettes, all truecolor:
+Six built-in palettes, all truecolour:
 
 | theme | appearance | syntax theme |
 |---|---|---|
@@ -208,10 +208,10 @@ More: [themes](docs/themes.md).
 - **As a viewer pane.** `/md README.md` (or clicking a `.md` path) opens a
   rendered Markdown pane beside the agent. Viewers scroll with `j`/`k`, `g`/`G`.
 - **In the terminal.** `herdstead md README.md` renders to stdout anywhere;
-  `herdstead md --stdin` renders a pipe:
+  `herdstead md -` or `herdstead render` renders a pipe:
 
 ```bash
-cat README.md | herdstead md --stdin
+cat README.md | herdstead render
 ```
 
 More: [the composer](docs/composer.md), [viewers](docs/viewers.md).
@@ -229,24 +229,24 @@ The composer completes file and folder references as you type:
   typo is visible before you send
 - send with `Enter`; the prompt goes to the focused agent pane
 
-`herdstead cat` and the viewers treat the same syntax as a link, so a reference
-in the transcript is clickable too.
+Terminal panes and Markdown viewers recognise the same reference syntax, so a
+reference in the transcript can be clickable too.
 
 More: [the composer](docs/composer.md).
 
 ### 5. `cat`, highlighted like an editor
 
 ```bash
-herdstead cat src/render/markdown.rs
+herdstead cat crates/render/src/markdown.rs
 herdstead cat Cargo.toml --no-line-numbers
 ```
 
 - 213 languages via [bat](https://github.com/sharkdp/bat)'s syntax set
   (bundled through `two-face`), including TOML, TypeScript and Dockerfiles that
   syntect's defaults miss
-- line numbers, a coloured rail, tabs expanded to four columns
+- line numbers and tabs expanded to four spaces; viewer panes also add a rail
 - theme-matched colours, including a monochrome mode
-- OSC 8 links for references in the file
+- up to 5000 lines, with long lines clipped at 500 columns in `herdstead cat`
 - `herdstead languages` lists what is supported
 
 More: [viewers](docs/viewers.md).
@@ -255,16 +255,16 @@ More: [viewers](docs/viewers.md).
 
 ```bash
 herdstead tree                    # the current folder
-herdstead tree src --depth 3
+herdstead tree crates --depth 3
 herdstead tree . --all            # include target/, node_modules/, .git/
 ```
 
 - folders first, then files, each with a size
 - box-drawing guides, colour by kind (folder, file, executable, symlink)
-- depth and entry caps so a huge tree cannot stall the renderer
-- in a session: `/tree src` or `ctrl+b shift+e` opens a tree pane; clicking a
+- depth and entry caps that bound the displayed tree
+- in a session: `/tree crates` or `ctrl+b shift+e` opens a tree pane; clicking a
   folder in a pane opens it as a tree. Viewer panes reuse the same renderer, so
-  the CLI and the TUI always agree
+  the CLI and the TUI share the drawing functions
 
 More: [viewers](docs/viewers.md).
 
@@ -306,11 +306,11 @@ More: [sessions](docs/sessions.md).
 | `prefix+shift+n` | new workspace |
 | `prefix+[` / `prefix+]` | previous / next workspace |
 | `prefix+shift+1`…`9` | go to a workspace |
-| `prefix+: ` | open the composer |
+| `prefix+:` | open the composer |
 | `prefix+t` | theme menu |
 | `prefix+m` | Markdown preview |
 | `prefix+e` / `prefix+shift+e` | open a file / a folder tree |
-| `prefix+|` | show or hide the sidebar |
+| `prefix+\|` | show or hide the sidebar |
 | `prefix+r` | reload config and theme |
 | `prefix+q` | detach |
 | `prefix+?` | keybinding help |
@@ -347,7 +347,7 @@ close-pane = "prefix+shift+q"
 
 ```toml
 theme = "midnight"
-shell = "/bin/zsh"
+# shell = "/bin/zsh"         # optional; otherwise use $SHELL, then /bin/sh
 scrollback = 5000
 links = true
 link-modifier = "super"      # super | ctrl | alt
@@ -397,17 +397,17 @@ flowchart LR
 
 The split follows herdr's guidance: **runtime facts** (panes, layout, focus,
 scrollback, agent status) live in the daemon, while **presentation** (theme,
-composer text, viewer scroll, overlays) never leaves the client. Every frame is
-a complete snapshot, which keeps reattaching trivial: a new client draws the
-session from the next message.
+composer text, viewer scroll, overlays) never leaves the client. Each snapshot
+contains the complete visible session, so a new client can draw it without
+replaying earlier updates.
 
 Crates:
 
 - `crates/core` — layout, session model, protocol, themes, agent detection,
   `@path` parsing, text utilities. No terminal dependency.
 - `crates/render` — Markdown, syntax highlighting, trees, link decoration, the
-  composer, ANSI output. Pure: text plus a theme in, styled rows out. The TUI and
-  the CLI share it, so `herdstead cat` and a viewer pane draw the same thing.
+  composer, ANSI output. Drawing functions are pure; file loading and tree
+  scanning perform IO. The TUI, desktop and CLI share the drawing functions.
 - `crates/app` — the daemon (`server/`), the TUI client (`tui/`) and the CLI.
 
 ## Tests
@@ -423,9 +423,9 @@ sh scripts/test-install.sh
   highlighting, trees, wrapping and link decoration
 - render tests that assert exact columns, links surviving a wrap, table
   alignment, and image placeholders
-- `tests/runtime.rs` drives a real daemon: a shell pane, typed keys, splits,
+- `crates/app/tests/runtime.rs` drives a real daemon: a shell pane, typed keys, splits,
   scrollback, viewer panes, kill, restart and layout restore
-- `tests/client.rs` drives the real TUI in a PTY: the drawn chrome, prefix
+- `crates/app/tests/client.rs` drives the real TUI in a PTY: the drawn chrome, prefix
   splits, the composer, `@path` completion, Markdown preview, viewer panes,
   detach and reattach, resizing, and the non-TTY guard
 - `scripts/test-install.sh` runs `install.sh` against fixture archives with no

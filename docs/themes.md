@@ -18,15 +18,18 @@ Change the theme and the whole surface changes with it.
 Aliases: `dark` and `default` mean `midnight`, `light` means `daylight`,
 `solarized-light` means `solarized`.
 
-Choose one with, in order of precedence:
+The startup theme is chosen in this order:
 
 1. `herdstead --theme nord`
 2. `HERDSTEAD_THEME=nord`
 3. `theme = "nord"` in the config
-4. `ctrl+b t` for the session (live preview; `Enter` applies, `Esc` restores what
-   you had), or `/theme nord` in the composer
 
-An unknown name is reported and `midnight` is used rather than failing.
+After attaching, `ctrl+b t` changes the current client
+(live preview; `Enter` applies, `Esc` restores what you had), or use
+`/theme nord` in the composer. These choices are not saved to config.
+
+At startup, an unknown name is reported and `midnight` is used. An unknown
+`/theme` name leaves the current TUI theme in place and shows a status message.
 
 ## Theme files
 
@@ -50,15 +53,17 @@ Drop a JSON file in `~/.config/herdstead/themes/` and it appears in
 
 | key | required | meaning |
 |---|---|---|
-| `name` | yes | the name to select; give it explicitly, or the file inherits its base theme's name and replaces it |
-| `extends` | no | a built-in or theme-file name to start from (default `midnight`) |
-| `appearance` | no | `dark` or `light`; decides the syntax fallback and derived tones |
-| `syntax` | no | the syntax theme to highlight code with |
+| `name` | no | recommended: the selection name; when omitted, inherits the base name and replaces that catalogue entry |
+| `extends` | no | a built-in palette to start from (default `midnight`); custom-theme inheritance is not supported |
+| `appearance` | no | `dark` or `light`; decides the syntax fallback without recomputing inherited slots |
+| `syntax` | no | syntax theme name; inherited from the base when omitted |
 | `colors` | no | slot → colour; `#rrggbb`, `#rgb` or a basic colour name |
 
 The file is read by file name (`themes/<name>.json` when selected by name) and
-then by its `name`. An unknown slot or an unparsable colour is a warning, not a
-failure: the rest of the theme still loads.
+then by its `name`; built-in names take precedence. An unknown slot or an
+unparsable colour rejects the custom file. When no valid theme matches, startup
+reports the problem and uses `midnight`; invalid files are omitted from the menu.
+See [troubleshooting](troubleshooting.md#the-theme-did-not-change).
 
 You can also override slots without a file, applying to whichever theme is
 active:
@@ -131,9 +136,10 @@ Code colours come from a [syntect](https://github.com/trishume/syntect) theme,
 not from the slots. The bundled set includes `base16-ocean.dark`,
 `base16-ocean.light`, `Nord`, `gruvbox-dark`, `gruvbox-light`, `Solarized
 (dark)`, `Solarized (light)`, `GitHub`, `Dracula`, `Monokai Extended`,
-`OneHalfDark`, `Catppuccin Mocha`, `TwoDark`, `zenburn` and more. Set `syntax` to
-one of those names; a theme without one falls back to `base16-ocean.dark` for
-dark appearance and `base16-ocean.light` for light.
+`OneHalfDark`, `Catppuccin Mocha`, `TwoDark`, `zenburn` and more. Use the exact
+name from the bundled set. An empty or unrecognised
+`syntax` falls back to `base16-ocean.dark` for dark appearance and
+`base16-ocean.light` for light; an omitted `syntax` inherits the base theme.
 
 `mono` is special: it keeps the syntax theme's structure but maps each token
 colour to grey by luminance, so structure survives without hue.

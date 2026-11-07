@@ -1,9 +1,8 @@
 //! `@path` mentions: parsing them out of a composer line, highlighting their
 //! ranges, and completing the one being typed.
 //!
-//! Mirrors how Oxide's composer treats a reference: an `@` that starts a token,
-//! quoted paths for names with spaces, an optional `#L12-L14` location, and
-//! resolution against the file system only when the reference is used.
+//! A reference starts a token with `@`, supports quoted paths and an optional
+//! `#L12-L14` location. Callers handle file-system resolution.
 
 use std::ops::Range;
 

@@ -13,7 +13,7 @@ use crate::ids::{PaneId, TabId, WorkspaceId};
 use crate::layout::SplitDir;
 use crate::model::{PaneKind, Size, ViewerKind, ViewerSpec};
 
-/// A hard ceiling on one frame, so a client cannot exhaust the daemon's memory.
+/// Incoming desktop bridge message limit. Unix socket readers do not enforce it.
 pub const MAX_FRAME_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -297,7 +297,8 @@ pub enum Action {
         dir: Dir,
         cells: i16,
     },
-    /// `delta` is in rows; `page` scrolls by a viewport instead.
+    /// Positive `delta` moves into history; negative moves towards live output.
+    /// With `page`, only the sign is used, scrolling by one viewport.
     ScrollPane {
         pane: PaneId,
         delta: i32,
@@ -393,7 +394,7 @@ pub enum Event {
     Snapshot {
         snapshot: Box<Snapshot>,
     },
-    /// The runtime is going away; the client should leave the alternate screen.
+    /// This client should leave the session; the daemon may continue running.
     Detached {
         reason: String,
     },

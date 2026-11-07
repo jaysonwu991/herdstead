@@ -92,7 +92,8 @@ pub fn decorate_input(
 }
 
 /// Rich ordinary output without changing terminal row coordinates. The live
-/// input row, wrapped rows, ANSI-styled output and alternate screen stay raw.
+/// cursor row, wrapped rows, ANSI-styled output and alternate screen are skipped.
+/// Input decoration is a separate pass.
 pub fn rich_lines(frame: &GridFrame, theme: &Theme) -> Vec<Line> {
     let mut lines = term_lines(frame, theme);
     if frame.alt_screen {

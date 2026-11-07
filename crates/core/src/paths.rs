@@ -212,19 +212,20 @@ pub fn default_session_name(cwd: &Path) -> String {
 }
 
 pub const DEFAULT_CONFIG: &str = r##"# herdstead configuration
-# Reload with `prefix+r` (or restart the session) after editing.
+# TUI settings: reload with `prefix+r`; mouse capture needs a new attach.
+# Daemon settings (shell, scrollback, restore): restart the session.
 
 # Theme: midnight, daylight, nord, gruvbox, mono, solarized,
 # or a name from ~/.config/herdstead/themes/<name>.json
 theme = "midnight"
 
-# Shell started for a new pane. Defaults to $SHELL.
+# Shell for new panes. Defaults to $SHELL, then /bin/sh.
 # shell = "/bin/zsh"
 
 # Lines of scrollback kept per terminal pane.
 scrollback = 5000
 
-# Wrap and interpret URLs and paths in terminal output.
+# Detect and decorate URLs and existing paths in terminal output.
 links = true
 # Modifier for opening a link or path under the pointer: "super", "ctrl", "alt".
 link-modifier = "super"
@@ -237,10 +238,11 @@ sidebar-width = 28
 composer-markdown-preview = false
 status-bar = true
 
-# Detached sessions are restored (layout, folders) when you reattach.
+# Restore the saved layout and folders when a daemon starts again.
+# Detaching always leaves the running daemon and its panes alive.
 restore = true
 
-# Folders a tree viewer collapses by default.
+# Folder names omitted by tree viewers and composer completion.
 tree-ignores = ["target", "node_modules", ".git", "dist", "build", ".venv"]
 tree-max-entries = 4000
 

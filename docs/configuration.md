@@ -23,7 +23,7 @@ keybindings and shell.
 
 ```toml
 theme = "midnight"
-shell = "/bin/zsh"
+# shell = "/bin/zsh"         # optional; otherwise use $SHELL, then /bin/sh
 scrollback = 5000
 
 links = true
@@ -69,7 +69,16 @@ Out-of-range numbers are clamped rather than rejected, and an empty `theme`
 falls back to `midnight`.
 
 `composer-markdown-preview` only decides the initial state: `ctrl+p` toggles the
-preview for the session either way.
+preview in the current client either way.
+
+## Applying changes
+
+In the TUI, `prefix+r` reloads the client config and theme from the focused
+pane's folder. Shell, scrollback and restore settings are read by the daemon
+when it starts; restart the session to apply those changes. Existing processes
+are stopped by a restart. Mouse capture is set when the TUI attaches, so changing
+`mouse` also requires a new attach. The desktop keeps its appearance preferences
+locally; see [Desktop](desktop.md).
 
 ## Environment
 
@@ -84,7 +93,9 @@ preview for the session either way.
 The directory variables are used exactly as given — they are not appended to a
 `herdstead` subfolder. Without them, the XDG variables are honoured
 (`XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_RUNTIME_DIR`), falling back to
-`~/.config/herdstead`, `~/.local/state/herdstead` and `/tmp/herdstead-<uid>`.
+`~/.config/herdstead`, `~/.local/state/herdstead` and a `herdstead-<uid>`
+folder in the system temporary directory (`$TMPDIR` on macOS, usually `/tmp`
+on Linux).
 
 Panes also receive `TERM`, `COLORTERM`, `HERDSTEAD=1`, `HERDSTEAD_PANE` and
 `HERDSTEAD_SESSION_PID` — see [terminal](terminal.md).
@@ -94,8 +105,9 @@ Panes also receive `TERM`, `COLORTERM`, `HERDSTEAD=1`, `HERDSTEAD_PANE` and
 herdstead reports configuration problems instead of failing: an invalid TOML
 file, an unknown keybinding action, an unparsable key spec, or an unknown theme
 slot. Warnings are printed to stderr before the interface starts (and the
-interface shows how many there were), and a daemon writes them to its session
-log.
+interface shows how many config warnings there were), and a daemon writes its
+configuration warnings to its session log. A TOML syntax error skips that file;
+a type error in the merged configuration falls back to all defaults.
 
 `herdstead config` is the quickest way to see what a run actually resolved, and
 `herdstead keys` what the keymap became.

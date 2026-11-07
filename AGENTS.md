@@ -7,15 +7,16 @@ your task before changing behaviour.
 ## What this is
 
 herdstead is a terminal workspace manager for coding agents, in Rust. One binary
-with two roles: a TUI client and a session daemon that owns the panes. macOS and
-Linux only, over a Unix socket.
+with a TUI client and a session daemon that owns the panes. An optional Tauri
+desktop app uses the same daemon through a JSON bridge. macOS and Linux only,
+over a Unix socket.
 
 Three crates:
 
 - `crates/core` — layout, session model, protocol, themes, config, detection,
   `@path`, text scanning. No terminal dependency.
 - `crates/render` — Markdown, syntax highlighting, trees, links, composer, ANSI.
-  Pure: text plus a theme in, styled rows out.
+  Drawing is pure; file helpers and tree scanning perform IO.
 - `crates/app` — the daemon (`src/server`), the client (`src/tui`) and the CLI.
 
 ## Invariants
@@ -27,7 +28,8 @@ Three crates:
    it in `docs/architecture.md`.
 2. **Renderers stay pure.** `markdown`, `inline`, `wrap`, `link`, `style`,
    `ansi` and `composer` take text and a theme; no terminal, no IO. File reading
-   lives in `code::highlight_file`, `tree::scan` and the client's viewer.
+   lives in `code::highlight_file`, `render_file`/`render_path`, `tree::scan`
+   and the client's viewer.
 3. **One palette.** A new colour is a slot in `Theme` (plus `slots!`, a default in
    `from_recipe`, and a row in `docs/themes.md`), never a literal in the UI.
 4. **The two front-ends agree.** Anything drawn in a viewer must be drawable by
@@ -45,11 +47,15 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-`tests/runtime.rs` starts real daemons (over a Unix socket, in a temp state dir);
-`tests/client.rs` runs the TUI in a PTY. They need no display and clean up after
-themselves, but they do spawn processes: a failure leaves a session behind, which
-`cargo run -- ls` shows and `cargo run -- kill <name>` clears. If a change touches
-keys, the composer, layout, viewers or the socket, the end-to-end tests are the
+`crates/app/tests/runtime.rs` starts real daemons over a Unix socket in a
+temporary state directory; `crates/app/tests/client.rs` runs the TUI in a PTY.
+They need no display and clean up after
+themselves, but an interrupted run can leave a session behind. To inspect or
+stop it, set `HERDSTEAD_CONFIG_DIR`, `HERDSTEAD_STATE_DIR` and
+`HERDSTEAD_RUNTIME_DIR` to that test fixture's directories before running
+`cargo run -- ls` or `cargo run -- kill <name>`. Normal CLI commands use your
+own session directories and will not list isolated test sessions. If a change
+touches keys, the composer, layout, viewers or the socket, the end-to-end tests are the
 ones that prove it — unit tests are not enough.
 
 `install.sh` has its own check, offline against fixture archives:

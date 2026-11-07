@@ -160,7 +160,7 @@ template: |
   ```
 
   The script picks the archive for your machine and checks it against the
-  `.sha256` beside it (macOS arm64 and x64, Linux x64 and arm64), installing
+  `.sha256` beside it when available (macOS arm64 and x64, Linux x64 and arm64), installing
   into `~/.local/bin`. Prebuilt binaries are attached below if you would rather
   fetch one yourself:
 

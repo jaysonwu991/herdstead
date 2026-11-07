@@ -10,7 +10,7 @@ use crate::style::{Line, Link, Style};
 pub struct AnsiOptions {
     /// Emit OSC 8 hyperlinks so supporting terminals make links clickable.
     pub hyperlinks: bool,
-    /// End each line with a reset, which keeps piped output readable.
+    /// Reset styles after each row so they do not leak into following output.
     pub reset_lines: bool,
 }
 
