@@ -258,13 +258,21 @@ are capped at 128 and time out after 15 seconds. A connection generation prevent
 late events from a stopped bridge affecting a reconnected window. Closing the
 app stops its bridge; the independent daemon keeps the PTYs alive.
 
+The bridge drains daemon events independently of rendering. Consecutive pending
+snapshots replace one another, and rendering starts at most once every 16.7 ms;
+the final pending snapshot is delivered even when output stops. Control events
+retain their order. This bounds obsolete rendering work during output bursts
+without delaying input forwarding or changing the daemon protocol.
+
 The page measures the terminal font and translates available pixels into a cell
 area. The daemon remains authoritative for layout, focus and PTY sizes. Semantic
 keys, input-method text and bracketed paste use semantic runtime actions.
 Themes, rich-output preference, viewer scroll, panel visibility and fonts remain
 client-side. Terminal rows are updated only when their spans change, structural
-chrome is keyed separately, resize events are debounced, and viewer reads are
-cached for a second. Files and Markdown never become executable HTML.
+chrome and resize handles are keyed separately, wheel events are combined per
+animation frame, resize events are debounced, and viewer reads are cached for a
+second. Row signatures stay in client memory rather than DOM attributes. Files
+and Markdown never become executable HTML.
 
 ### Shell integration and output interpretation
 

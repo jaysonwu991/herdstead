@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
   const page = await browser.newPage({ viewport: { width: 1500, height: 960 } });
   const failures = [];
   const openedLinks = [];
+  const scrollActions = [];
   let updateResult = null;
   let updateError = null;
   let installError = null;
@@ -29,7 +30,10 @@ const assert = require('node:assert/strict');
         return null;
       }
       if (name === 'bridge_state') return run.events();
-      if (name === 'bridge_request') return run.request(args.message);
+      if (name === 'bridge_request') {
+        if (args.message.action?.type === 'scroll_pane') scrollActions.push(args.message.action);
+        return run.request(args.message);
+      }
       if (name === 'open_external') { openedLinks.push(args.target); return null; }
       if (name === 'choose_folder') return run.cwd;
       return null;
@@ -84,6 +88,31 @@ const assert = require('node:assert/strict');
       return event.defaultPrevented;
     }), false, 'Unclaimed Cmd shortcuts must stay with the native menu');
     await page.locator('#split-right').click(); await page.waitForFunction(() => document.querySelectorAll('.pane').length === 2);
+    const stability = await page.evaluate(async event => {
+      const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+      await frame(); await frame();
+      const handles = [...document.querySelectorAll('.resize-handle')];
+      const titles = [...document.querySelectorAll('.pane-header .title')].map(node => node.firstChild);
+      const row = document.querySelector('.terminal-row');
+      for (let i = 0; i < 20; i++) { window.__desktopEvent(event); await frame(); }
+      await frame();
+      return {
+        handles: handles.length > 0 && handles.every(node => node.isConnected),
+        titles: titles.every(node => node.isConnected),
+        row: row.isConnected,
+        signaturesInDOM: document.querySelectorAll('[data-signature]').length,
+      };
+    }, run.latest());
+    assert.deepEqual(stability, { handles: true, titles: true, row: true, signaturesInDOM: 0 }, 'Repeated terminal frames retain resize handles, headers and unchanged rows without copying row JSON into the DOM');
+    await page.evaluate(() => {
+      const pane = document.querySelector('.pane');
+      for (let i = 0; i < 24; i++) pane.dispatchEvent(new WheelEvent('wheel', { deltaY: -1, bubbles: true, cancelable: true }));
+    });
+    await page.waitForFunction(() => !scrollPending);
+    await page.evaluate(() => actionQueue);
+    assert.equal(scrollActions.length, 1, 'A wheel burst sends one daemon action per animation frame');
+    assert.equal(scrollActions[0].delta, 72, 'Wheel batching retains the complete scroll distance');
+    await run.request({ type: 'action', action: { type: 'scroll_to_bottom', pane: scrollActions[0].pane } });
     const firstPane = await page.locator('.pane').first().getAttribute('data-id');
     await page.locator('.pane').first().locator('.pane-zoom').click();
     await page.waitForFunction(id => document.querySelectorAll('.pane').length === 1 && document.querySelector('.pane.focused')?.dataset.id === id, firstPane);

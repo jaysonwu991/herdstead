@@ -1,8 +1,10 @@
 //! The desktop client transport. Presentation stays here, never in the daemon.
 
+use std::collections::VecDeque;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use herdstead_core::config::Config;
@@ -16,6 +18,65 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::{client, viewer};
+
+const FRAME_INTERVAL: Duration = Duration::from_micros(16_667);
+
+type DesktopEvent = std::result::Result<Event, String>;
+
+#[derive(Default)]
+struct PendingFrames {
+    events: VecDeque<DesktopEvent>,
+    closed: bool,
+}
+
+// Drain the socket independently of rendering: full snapshots supersede older
+// pending snapshots, so a slow webview never makes us render a backlog.
+#[derive(Default)]
+struct FrameQueue {
+    pending: Mutex<PendingFrames>,
+    changed: Condvar,
+}
+
+impl FrameQueue {
+    fn push(&self, event: DesktopEvent) -> bool {
+        let mut pending = self.pending.lock().unwrap();
+        if pending.closed {
+            return false;
+        }
+        if matches!(event, Ok(Event::Snapshot { .. }))
+            && matches!(pending.events.back(), Some(Ok(Event::Snapshot { .. })))
+        {
+            pending.events.pop_back();
+        }
+        pending.events.push_back(event);
+        self.changed.notify_one();
+        true
+    }
+
+    fn close(&self) {
+        self.pending.lock().unwrap().closed = true;
+        self.changed.notify_one();
+    }
+
+    fn next(&self, frame_at: Instant) -> Option<DesktopEvent> {
+        let mut pending = self.pending.lock().unwrap();
+        loop {
+            if let Some(event) = pending.events.front() {
+                if matches!(event, Ok(Event::Snapshot { .. })) {
+                    if let Some(delay) = frame_at.checked_duration_since(Instant::now()) {
+                        pending = self.changed.wait_timeout(pending, delay).unwrap().0;
+                        continue;
+                    }
+                }
+                return pending.events.pop_front();
+            }
+            if pending.closed {
+                return None;
+            }
+            pending = self.changed.wait(pending).unwrap();
+        }
+    }
+}
 
 #[derive(Deserialize)]
 struct Message {
@@ -140,50 +201,67 @@ pub fn run(
     let rich = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let rich_reader = Arc::clone(&rich);
     let links = config.links;
-    let reader = std::thread::spawn(move || loop {
-        let result = match connection.next_event() {
-            Ok(Event::Snapshot { snapshot }) => {
-                let theme = render_theme.lock().unwrap();
-                let screens: serde_json::Map<String, Value> = snapshot
-                    .panes
-                    .iter()
-                    .filter_map(|pane| {
-                        pane.grid.as_ref().map(|grid| {
-                            let mut lines =
-                                if rich_reader.load(std::sync::atomic::Ordering::Relaxed) {
-                                    term::rich_lines(grid, &theme)
-                                } else {
-                                    term::term_lines(grid, &theme)
-                                };
-                            let base = Path::new(&pane.cwd);
-                            term::decorate_input(grid, &mut lines, &theme, links, &|path| {
-                                base.join(path).exists()
-                            });
-                            if links {
-                                lines = lines
-                                    .iter()
-                                    .map(|line| {
-                                        link::decorate(line, &theme, &|path| {
-                                            base.join(path).exists()
-                                        })
-                                    })
-                                    .collect();
-                            }
-                            (pane.id.0.to_string(), rows(lines))
-                        })
-                    })
-                    .collect();
-                emit(&json!({"type": "snapshot", "snapshot": snapshot, "screens": screens}))
-            }
-            Ok(event) => emit(&serde_json::to_value(event).unwrap()),
-            Err(err) => {
-                let _ = emit(&json!({"type": "disconnected", "message": err.to_string()}));
+    let frames = Arc::new(FrameQueue::default());
+    let incoming = Arc::clone(&frames);
+    let socket_reader = std::thread::spawn(move || {
+        loop {
+            let event = connection.next_event().map_err(|err| err.to_string());
+            let disconnected = event.is_err();
+            if !incoming.push(event) || disconnected {
                 break;
             }
-        };
-        if result.is_err() {
-            break;
         }
+        incoming.close();
+    });
+    let reader = std::thread::spawn(move || {
+        let mut frame_at = Instant::now();
+        while let Some(event) = frames.next(frame_at) {
+            let result = match event {
+                Ok(Event::Snapshot { snapshot }) => {
+                    frame_at = Instant::now() + FRAME_INTERVAL;
+                    let theme = render_theme.lock().unwrap();
+                    let screens: serde_json::Map<String, Value> = snapshot
+                        .panes
+                        .iter()
+                        .filter_map(|pane| {
+                            pane.grid.as_ref().map(|grid| {
+                                let mut lines =
+                                    if rich_reader.load(std::sync::atomic::Ordering::Relaxed) {
+                                        term::rich_lines(grid, &theme)
+                                    } else {
+                                        term::term_lines(grid, &theme)
+                                    };
+                                let base = Path::new(&pane.cwd);
+                                term::decorate_input(grid, &mut lines, &theme, links, &|path| {
+                                    base.join(path).exists()
+                                });
+                                if links {
+                                    lines = lines
+                                        .iter()
+                                        .map(|line| {
+                                            link::decorate(line, &theme, &|path| {
+                                                base.join(path).exists()
+                                            })
+                                        })
+                                        .collect();
+                                }
+                                (pane.id.0.to_string(), rows(lines))
+                            })
+                        })
+                        .collect();
+                    emit(&json!({"type": "snapshot", "snapshot": snapshot, "screens": screens}))
+                }
+                Ok(event) => emit(&serde_json::to_value(event).unwrap()),
+                Err(err) => {
+                    let _ = emit(&json!({"type": "disconnected", "message": err.to_string()}));
+                    break;
+                }
+            };
+            if result.is_err() {
+                break;
+            }
+        }
+        frames.close();
     });
 
     let result = (|| -> Result<()> {
@@ -270,6 +348,9 @@ pub fn run(
     // Wake the reader and finish its current JSON frame before exiting. EOF
     // detaches just this client; shells remain owned by the daemon.
     let _ = writer.shutdown(std::net::Shutdown::Both);
+    socket_reader
+        .join()
+        .map_err(|_| anyhow::anyhow!("desktop socket reader panicked"))?;
     reader
         .join()
         .map_err(|_| anyhow::anyhow!("desktop event reader panicked"))?;
@@ -280,6 +361,68 @@ pub fn run(
 mod tests {
     use super::*;
     use herdstead_render::{Link, Span, Style};
+
+    fn snapshot(seq: u64) -> DesktopEvent {
+        Ok(Event::Snapshot {
+            snapshot: Box::new(herdstead_core::protocol::Snapshot {
+                session: "test".into(),
+                version: String::new(),
+                seq,
+                size: Size {
+                    rows: 40,
+                    cols: 120,
+                },
+                area: Rect::new(0, 0, 120, 40),
+                workspaces: Vec::new(),
+                active_workspace: 0,
+                focused: None,
+                zoomed: false,
+                panes: Vec::new(),
+            }),
+        })
+    }
+
+    #[test]
+    fn slow_renderer_keeps_only_the_latest_pending_snapshot_and_drains_on_close() {
+        let frames = FrameQueue::default();
+        for seq in 0..1000 {
+            assert!(frames.push(snapshot(seq)));
+        }
+        assert_eq!(frames.pending.lock().unwrap().events.len(), 1);
+        frames.push(Err("disconnected".into()));
+        frames.close();
+        let now = Instant::now();
+        let Some(Ok(Event::Snapshot { snapshot })) = frames.next(now) else {
+            panic!("missing final snapshot");
+        };
+        assert_eq!(snapshot.seq, 999);
+        assert_eq!(frames.next(now).unwrap().unwrap_err(), "disconnected");
+        assert!(frames.next(now).is_none());
+        assert!(!frames.push(self::snapshot(1000)));
+    }
+
+    #[test]
+    fn snapshot_coalescing_preserves_control_event_order() {
+        let frames = FrameQueue::default();
+        frames.push(snapshot(1));
+        frames.push(Ok(Event::Error {
+            message: "error".into(),
+        }));
+        frames.push(snapshot(2));
+        frames.push(snapshot(3));
+        frames.close();
+        let now = Instant::now();
+        assert!(
+            matches!(frames.next(now), Some(Ok(Event::Snapshot { snapshot })) if snapshot.seq == 1)
+        );
+        assert!(
+            matches!(frames.next(now), Some(Ok(Event::Error { message })) if message == "error")
+        );
+        assert!(
+            matches!(frames.next(now), Some(Ok(Event::Snapshot { snapshot })) if snapshot.seq == 3)
+        );
+        assert!(frames.next(now).is_none());
+    }
 
     #[test]
     fn link_badges_use_existing_cells_and_never_change_source() {
