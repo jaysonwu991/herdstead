@@ -94,6 +94,20 @@ own input UI uses its own completion behaviour. Existing running daemons keep
 their original environment: start a new session to enable the integration.
 Other shells remain usable as ordinary terminals.
 
+### Markdown and links while typing
+
+The live input line styles **bold**, *italic*, ~~strikethrough~~, inline code and
+Markdown links as you type. Syntax markers remain visible and editable; the
+styling does not change shell quoting or the bytes zsh executes. Soft-wrapped
+input retains its cursor columns and complete link targets.
+
+Bare URLs and `[label](https://example.com)` links are recognised before you
+submit. A local logo appears ahead of a link, using an available space or the
+terminal gutter. GitHub, web, file and mail icons require no favicon/network
+requests. Click the icon or Cmd/Ctrl-click the linked text to open it; a focused
+link also opens with Enter. Opening a link does not submit the command. Icons
+are excluded from copied text and never become part of shell input.
+
 ### Files, code and command output
 
 Interactive single-file `cat` reads render in place:
@@ -201,6 +215,7 @@ npm run test:e2e
 integration tests, isolated from user configuration and state. Build it with
 `cargo build` first. The browser E2E test needs Chrome installed, drives the real
 page and real daemon, and substitutes only Tauri's invoke/event transport. It
-checks input, splits, tabs, in-terminal Markdown, file viewers, shell `@path`, themes,
+checks input Markdown/source preservation, link-logo activation, splits, tabs,
+in-terminal Markdown, file viewers, shell `@path`, themes,
 the command palette and resizing. Native webview/IPC and folder picking also
 need a smoke test in the actual Tauri window.

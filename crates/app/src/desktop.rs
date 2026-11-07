@@ -57,18 +57,33 @@ fn palette(theme: &Theme) -> Value {
 // Serialise the shared renderer's output, rather than implementing highlighting
 // or Markdown a second time in JavaScript.
 fn rows(lines: Vec<Line>) -> Value {
-    json!(lines.into_iter().map(|line| line.spans.into_iter().map(|span| {
-        let style = span.style;
-        json!({
-            "text": span.text,
-            "fg": style.fg.map(|c| c.to_hex()),
-            "bg": style.bg.map(|c| c.to_hex()),
-            "bold": style.bold, "dim": style.dim, "italic": style.italic,
-            "underline": style.underline, "strike": style.strikethrough,
-            "inverse": style.reversed,
-            "link": span.link.map(|target| json!({"target": target.target(), "url": target.is_url()}))
-        })
-    }).collect::<Vec<_>>()).collect::<Vec<_>>())
+    json!(lines.into_iter().map(|line| {
+        let mut column = 0;
+        let mut space = None;
+        let mut previous_link = None;
+        let mut badges = std::collections::BTreeSet::new();
+        line.spans.into_iter().map(|span| {
+            let style = span.style;
+            let link = span.link.as_ref().map(|target| {
+                let cell = space.unwrap_or(usize::MAX);
+                let first = previous_link.as_ref() != Some(target);
+                let offset = (first && badges.insert(cell)).then_some(space.map_or(column + 1, |space| column - space));
+                json!({"target": target.target(), "url": target.is_url(), "badge_offset": offset})
+            });
+            previous_link = span.link.clone();
+            for ch in span.text.chars() {
+                if ch.is_whitespace() { space = Some(column); }
+                column += herdstead_core::text::char_width(ch);
+            }
+            json!({
+                "text": span.text,
+                "fg": style.fg.map(|c| c.to_hex()), "bg": style.bg.map(|c| c.to_hex()),
+                "bold": style.bold, "dim": style.dim, "italic": style.italic,
+                "underline": style.underline, "strike": style.strikethrough,
+                "inverse": style.reversed, "link": link
+            })
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>())
 }
 
 fn directory(path: &Path, config: &Config) -> Result<Value> {
@@ -140,8 +155,11 @@ pub fn run(
                                 } else {
                                     term::term_lines(grid, &theme)
                                 };
+                            let base = Path::new(&pane.cwd);
+                            term::decorate_input(grid, &mut lines, &theme, links, &|path| {
+                                base.join(path).exists()
+                            });
                             if links {
-                                let base = Path::new(&pane.cwd);
                                 lines = lines
                                     .iter()
                                     .map(|line| {
@@ -243,4 +261,29 @@ pub fn run(
     }
     // EOF detaches just this client; shells remain owned by the daemon.
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use herdstead_render::{Link, Span, Style};
+
+    #[test]
+    fn link_badges_use_existing_cells_and_never_change_source() {
+        let target = Link::Url("https://github.com".into());
+        let mut line = Line::plain("日本 ");
+        line.push(Span::plain("https://git").linked(target.clone()));
+        line.push(Span::new("hub.com", Style::plain().bold()).linked(target));
+        let data = rows(vec![line]);
+        let spans = data[0].as_array().unwrap();
+        assert_eq!(
+            spans
+                .iter()
+                .map(|span| span["text"].as_str().unwrap())
+                .collect::<String>(),
+            "日本 https://github.com"
+        );
+        assert_eq!(spans[1]["link"]["badge_offset"], 1);
+        assert!(spans[2]["link"]["badge_offset"].is_null());
+    }
 }

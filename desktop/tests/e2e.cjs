@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
   const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
   const page = await browser.newPage({ viewport: { width: 1500, height: 960 } });
   const failures = [];
+  const openedLinks = [];
   page.on('pageerror', error => failures.push(error.message));
   const run = runtime(event => { page.evaluate(event => window.__desktopEvent?.(event), event).catch(() => {}); }, { shell: '/bin/zsh', integration: true });
   try {
@@ -16,6 +17,7 @@ const assert = require('node:assert/strict');
     await page.exposeFunction('__invoke', (name, args) => {
       if (name === 'bridge_state') return run.events();
       if (name === 'bridge_request') return run.request(args.message);
+      if (name === 'open_external') { openedLinks.push(args.target); return null; }
       if (name === 'choose_folder') return run.cwd;
       return null;
     });
@@ -33,6 +35,25 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#composer').count(), 0);
     await run.wait(event => { const p = event.snapshot.panes.find(p => p.id === event.snapshot.focused); const g = p?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable zsh prompt');
     await page.locator('#terminal-input').focus();
+    const literal = '**bold** *italic* `code` [GitHub](https://github.com) https://example.com';
+    const draft = `printf '%s' '${literal}' > input-proof.txt`;
+    await page.keyboard.type(draft);
+    await page.waitForFunction(() => [...document.querySelectorAll('.pane.focused .terminal-row span')].some(span => span.textContent === 'bold' && span.style.fontWeight === '700'));
+    await page.waitForFunction(() => [...document.querySelectorAll('.pane.focused .terminal-row span')].some(span => span.textContent === 'italic' && span.style.fontStyle === 'italic'));
+    const githubLogo = page.locator('.pane.focused .link-logo[data-kind="github"]').first();
+    await githubLogo.waitFor();
+    assert.equal(fs.existsSync(path.join(run.cwd, 'input-proof.txt')), false);
+    await page.waitForFunction(draft => document.querySelector('.pane.focused .rows')?.textContent.includes(draft), draft);
+    const originalInput = await page.locator('.pane.focused .rows').textContent();
+    assert.ok(originalInput.includes('**bold**'));
+    await githubLogo.click();
+    assert.deepEqual(openedLinks, ['https://github.com']);
+    assert.equal(fs.existsSync(path.join(run.cwd, 'input-proof.txt')), false, 'Opening a link must not submit the shell input');
+    assert.equal(await page.locator('.pane.focused .rows').textContent(), originalInput, 'Link logos do not add source characters');
+    await page.locator('#terminal-input').focus(); await page.keyboard.press('Enter');
+    await run.wait(() => fs.existsSync(path.join(run.cwd, 'input-proof.txt')), 'unchanged Markdown command execution');
+    assert.equal(fs.readFileSync(path.join(run.cwd, 'input-proof.txt'), 'utf8'), literal);
+    await run.wait(event => { const g = event.snapshot.panes.find(p => p.id === event.snapshot.focused)?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable prompt after Markdown input');
     await page.keyboard.type('printf "UI-TERMINAL-OK\\n"'); await page.keyboard.press('Enter');
     await page.locator('.terminal-row').filter({ hasText: 'UI-TERMINAL-OK' }).first().waitFor();
     assert.equal(await page.evaluate(() => {
@@ -80,6 +101,6 @@ const assert = require('node:assert/strict');
     fs.mkdirSync(path.resolve(__dirname, '../test-results'), { recursive: true });
     await page.screenshot({ path: path.resolve(__dirname, '../test-results/desktop.png') });
     assert.deepEqual(failures, []);
-    console.log('Desktop E2E passed: real PTY input, splits, tabs, shell completion, files, inline Markdown, @path, themes, palette and resize.');
+    console.log('Desktop E2E passed: real PTY input, splits, tabs, shell input Markdown and link logos, shell completion, files, inline Markdown, @path, themes, palette and resize.');
   } finally { await browser.close(); await run.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

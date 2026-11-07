@@ -313,3 +313,11 @@ already styled output or alternate-screen applications. The desktop can select
 raw output instead. Complete Markdown documents use the shared block renderer
 through `md`/`render`, so tables and paragraph reflow are not constrained to a
 terminal screen's existing rows.
+
+`render::input` styles inline Markdown without removing source delimiters.
+`term::decorate_input` reconstructs the editable logical line across soft wraps,
+then restores the original terminal columns after styling and link detection.
+Links are scanned across style runs so a URL interrupted by ZLE or Markdown
+colour changes still carries one complete target. The desktop serialises badge
+offsets into existing blank cells or the gutter; local SVG logos are presentation
+only and add no text or PTY columns. Alternate-screen applications are excluded.

@@ -15,3 +15,11 @@ test('IME and dead keys are left to the composition input path', () => {
 test('copy output retains Unicode and row boundaries', () => {
   assert.equal(plain([[{ text: '日本' }, { text: '語' }], [], [{ text: '<script>' }]]), '日本語\n\n<script>');
 });
+
+test('link logos are selected locally without favicon requests', () => {
+  const { linkKind } = require('../src/terminal.js');
+  assert.equal(linkKind({ url: true, target: 'https://github.com/org/repo' }), 'github');
+  assert.equal(linkKind({ url: true, target: 'https://example.com' }), 'web');
+  assert.equal(linkKind({ url: true, target: 'mailto:hello@example.com' }), 'mail');
+  assert.equal(linkKind({ url: false, target: 'docs/desktop.md' }), 'file');
+});

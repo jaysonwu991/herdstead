@@ -25,6 +25,72 @@ pub fn term_lines(frame: &GridFrame, theme: &Theme) -> Vec<Line> {
         .collect()
 }
 
+/// Decorate the editable logical line while retaining its terminal columns,
+/// including references whose text crosses a soft wrap.
+pub fn decorate_input(
+    frame: &GridFrame,
+    lines: &mut [Line],
+    theme: &Theme,
+    links: bool,
+    resolve: &dyn Fn(&str) -> bool,
+) {
+    let Some(cursor) = frame
+        .cursor
+        .filter(|_| !frame.alt_screen && frame.offset == 0)
+    else {
+        return;
+    };
+    let cursor = usize::from(cursor.row);
+    if cursor >= lines.len() || lines.len() != frame.lines.len() || frame.cols == 0 {
+        return;
+    }
+    let mut first = cursor;
+    while first > 0 && frame.lines[first - 1].wrapped {
+        first -= 1;
+    }
+    let mut last = cursor;
+    while last + 1 < lines.len() && frame.lines[last].wrapped {
+        last += 1;
+    }
+    let mut combined = Line::new();
+    for (row, original) in lines.iter().enumerate().take(last + 1).skip(first) {
+        let mut line = original.clone();
+        if frame.lines[row].wrapped {
+            line.padded(usize::from(frame.cols), Style::plain());
+        }
+        combined.extend(line.spans);
+    }
+    let mut styled = crate::input::decorate(&combined, theme, links, resolve);
+    if links {
+        styled = crate::link::decorate(&styled, theme, resolve);
+    }
+    let mut rows = vec![Line::new(); last - first + 1];
+    let mut row = 0;
+    let mut column = 0;
+    for span in styled.spans {
+        for ch in span.text.chars() {
+            let width = herdstead_core::text::char_width(ch);
+            if column + width > usize::from(frame.cols) {
+                row += 1;
+                column = 0;
+            }
+            let Some(target) = rows.get_mut(row) else {
+                break;
+            };
+            target.push(Span {
+                text: ch.to_string(),
+                style: span.style,
+                link: span.link.clone(),
+            });
+            column += width;
+        }
+    }
+    for (target, mut line) in lines[first..=last].iter_mut().zip(rows) {
+        trim_trailing_space(&mut line);
+        *target = line;
+    }
+}
+
 /// Rich ordinary output without changing terminal row coordinates. The live
 /// input row, wrapped rows, ANSI-styled output and alternate screen stay raw.
 pub fn rich_lines(frame: &GridFrame, theme: &Theme) -> Vec<Line> {
@@ -189,6 +255,47 @@ fn trim_trailing_space(line: &mut Line) {
 mod tests {
     use super::*;
     use herdstead_core::protocol::{StyledLine, StyledRun, TermColor, TermStyle};
+
+    #[test]
+    fn input_markdown_and_links_survive_soft_wraps_without_moving_cells() {
+        let source = ["echo **bo", "ld** www.", "site.com"];
+        let mut frame = GridFrame::plain(
+            3,
+            9,
+            source
+                .iter()
+                .enumerate()
+                .map(|(row, text)| StyledLine {
+                    runs: vec![run(text, TermStyle::default())],
+                    wrapped: row < 2,
+                })
+                .collect(),
+        );
+        frame.cursor = Some(herdstead_core::protocol::CursorPos { row: 2, col: 8 });
+        let theme = Theme::midnight();
+        let mut rows = term_lines(&frame, &theme);
+        decorate_input(&frame, &mut rows, &theme, true, &|_| false);
+        assert_eq!(
+            rows.iter().map(Line::text).collect::<String>(),
+            source.concat()
+        );
+        assert!(rows[0]
+            .spans
+            .iter()
+            .any(|span| span.text == "bo" && span.style.bold));
+        assert!(rows[1]
+            .spans
+            .iter()
+            .any(|span| span.text == "ld" && span.style.bold));
+        assert!(rows[2]
+            .spans
+            .iter()
+            .all(|span| span.link == Some(crate::Link::Url("https://www.site.com".into()))));
+        frame.alt_screen = true;
+        let mut raw = term_lines(&frame, &theme);
+        decorate_input(&frame, &mut raw, &theme, true, &|_| false);
+        assert_eq!(raw, term_lines(&frame, &theme));
+    }
 
     #[test]
     fn rich_output_formats_markdown_and_code_without_moving_input() {

@@ -10,72 +10,55 @@ use crate::style::{Line, Link, Span, Style};
 /// `resolve` decides whether a path candidate exists, so a word that merely
 /// looks like a path never becomes a link.
 pub fn decorate(line: &Line, theme: &Theme, resolve: &dyn Fn(&str) -> bool) -> Line {
-    let mut out = Line::new();
-    for span in &line.spans {
-        for piece in split_span(span, theme, resolve) {
-            out.push(piece);
-        }
-    }
-    out
-}
-
-fn split_span(span: &Span, theme: &Theme, resolve: &dyn Fn(&str) -> bool) -> Vec<Span> {
-    if span.link.is_some() {
-        return vec![span.clone()];
-    }
-    let content = &span.text;
-    let mut hits: Vec<(usize, usize, Link)> = text::find_urls(content)
+    let source = line.text();
+    let mut hits: Vec<(std::ops::Range<usize>, Link)> = text::find_urls(&source)
         .into_iter()
-        .map(|hit| (hit.span.start, hit.span.end, Link::Url(hit.url)))
-        .chain(text::find_paths(content).into_iter().filter_map(|hit| {
-            if !resolve(&hit.path) {
-                return None;
-            }
-            Some((
-                hit.span.start,
-                hit.span.end,
-                Link::Path {
-                    path: hit.path,
-                    line: hit.line,
-                    column: hit.column,
-                },
-            ))
+        .map(|hit| (hit.span, Link::Url(hit.url)))
+        .chain(text::find_paths(&source).into_iter().filter_map(|hit| {
+            resolve(&hit.path).then_some({
+                (
+                    hit.span,
+                    Link::Path {
+                        path: hit.path,
+                        line: hit.line,
+                        column: hit.column,
+                    },
+                )
+            })
         }))
         .collect();
     if hits.is_empty() {
-        return vec![span.clone()];
+        return line.clone();
     }
-    hits.sort_by_key(|(start, _, _)| *start);
-    let mut out = Vec::new();
-    let mut cursor = 0;
-    for (start, end, link) in hits {
-        if start < cursor {
-            continue;
-        }
-        if start > cursor {
-            out.push(Span {
-                text: content[cursor..start].to_string(),
+    hits.sort_by_key(|(range, _)| range.start);
+    let mut out = Line::new();
+    let mut offset = 0;
+    for span in &line.spans {
+        for (index, ch) in span.text.char_indices() {
+            let mut piece = Span {
+                text: ch.to_string(),
                 style: span.style,
-                link: None,
-            });
+                link: span.link.clone(),
+            };
+            if piece.link.is_none() {
+                if let Some((_, link)) = hits
+                    .iter()
+                    .find(|(range, _)| range.contains(&(offset + index)))
+                {
+                    piece.style = piece
+                        .style
+                        .fg(if link.is_url() {
+                            theme.link
+                        } else {
+                            theme.path
+                        })
+                        .underline();
+                    piece.link = Some(link.clone());
+                }
+            }
+            out.push(piece);
         }
-        let style = match &link {
-            Link::Url(_) => span.style.fg(theme.link).underline(),
-            Link::Path { .. } => span.style.fg(theme.path).underline(),
-        };
-        out.push(Span {
-            text: content[start..end].to_string(),
-            style,
-            link: Some(link),
-        });
-        cursor = end;
-    }
-    if cursor < content.len() {
-        out.push(Span {
-            text: content[cursor..].to_string(),
-            style: span.style,
-            link: None,
-        });
+        offset += span.text.len();
     }
     out
 }
@@ -100,6 +83,19 @@ pub fn hover_style(style: Style, theme: &Theme) -> Style {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn links_split_across_terminal_styles_keep_the_complete_target() {
+        let theme = Theme::midnight();
+        let mut line = Line::plain("see https://git");
+        line.push(Span::new("hub.com", Style::plain().bold()));
+        let styled = decorate(&line, &theme, &|_| false);
+        assert_eq!(styled.text(), line.text());
+        let links = styled.links();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].0, Link::Url("https://github.com".into()));
+        assert!(styled.spans.last().unwrap().style.bold);
+    }
 
     fn theme() -> Theme {
         Theme::midnight()

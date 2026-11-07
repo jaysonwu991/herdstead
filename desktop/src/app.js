@@ -207,7 +207,7 @@ function render() {
       Terminal.updateRows(view.lines, state.screens[pane.id] || [], document, onLink);
       const cursor = pane.grid.cursor;
       view.cursor.hidden = !cursor || pane.grid.offset > 0;
-      if (cursor) Object.assign(view.cursor.style, { top: `${cursor.row * cell.height}px`, left: `${cursor.col * cell.width}px` });
+      if (cursor) Object.assign(view.cursor.style, { top: `${cursor.row * cell.height}px`, left: `${(cursor.col + 1) * cell.width}px` });
     } else safely(() => renderViewer(pane, view))();
   }
   renderDividers(); find();
