@@ -14,5 +14,10 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.0",
     "playwright": "1.58.2"
+  },
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": "26.x",
+    "pnpm": "12.x"
   }
 }

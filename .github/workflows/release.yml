@@ -21,6 +21,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  npm_config_registry: https://registry.npmjs.org/
+  PNPM_CONFIG_REGISTRY: https://registry.npmjs.org/
   RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
 
 jobs:
@@ -59,11 +61,14 @@ jobs:
         with:
           targets: ${{ matrix.target }}
           components: rustfmt, clippy
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: desktop/package.json
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: desktop/package-lock.json
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
@@ -73,7 +78,7 @@ jobs:
       - name: Install Linux prerequisites
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y zsh libwebkit2gtk-4.1-dev libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
         working-directory: desktop
       - name: Stamp desktop and bundled runtime version
         run: |
@@ -81,7 +86,7 @@ jobs:
           cargo update --workspace
           cargo update --manifest-path desktop/src-tauri/Cargo.toml --workspace
       - run: cargo build --locked
-      - run: npm test
+      - run: pnpm test
         working-directory: desktop
       - name: Build native installers and signed updates
         working-directory: desktop
@@ -93,7 +98,7 @@ jobs:
           NO_STRIP: 'true'
         run: |
           test -n "$TAURI_SIGNING_PRIVATE_KEY"
-          npm run build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          pnpm run build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
       - name: Stage platform downloads
         run: python3 scripts/desktop-release.py stage ${{ matrix.platform }} desktop/src-tauri/target/${{ matrix.target }}/release/bundle release-assets
       - uses: actions/upload-artifact@v4

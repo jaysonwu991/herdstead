@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "dev.herdstead.desktop",
   "build": {
-    "beforeDevCommand": "npm run prepare:runtime",
-    "beforeBuildCommand": "npm run prepare:runtime",
+    "beforeDevCommand": "pnpm run prepare:runtime",
+    "beforeBuildCommand": "pnpm run prepare:runtime",
     "frontendDist": "../src"
   },
   "app": {

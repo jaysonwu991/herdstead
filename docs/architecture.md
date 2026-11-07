@@ -299,7 +299,7 @@ only and add no text or PTY columns. Alternate-screen applications are excluded.
 
 The release workflow builds the runtime and Tauri host for macOS arm64/x64 and
 Linux arm64/x64. `CARGO_BUILD_TARGET` keeps the bundled runtime on the same target
-as the app. Version stamping covers both Cargo manifests, npm metadata and Tauri
+as the app. Version stamping covers both Cargo manifests, the desktop package manifest and Tauri
 configuration. Native installers are DMGs, AppImages and Debian packages.
 `scripts/desktop-release.py` stages stable platform names and refuses to publish
 until every installer and updater signature exists. It assembles `latest.json`
