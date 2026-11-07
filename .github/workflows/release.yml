@@ -3,8 +3,6 @@ name: Desktop release
 on:
   push:
     tags: ['v*']
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -16,14 +14,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-release-${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+  group: desktop-release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
   npm_config_registry: https://registry.npmjs.org/
   PNPM_CONFIG_REGISTRY: https://registry.npmjs.org/
-  RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   check:
