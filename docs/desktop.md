@@ -34,7 +34,11 @@ HERDSTEAD_CWD=/path/to/project HERDSTEAD_SESSION=work pnpm run dev
 
 The default folder is the launch directory (or the home folder when launched
 without one), and the session defaults to that folder's name. The **+** beside
-Workspaces opens a native folder picker and adds a workspace to that session.
+Spaces opens a native folder picker and adds a workspace to that session.
+The home workspace is shown as `~`; home paths are abbreviated throughout the
+desktop. Custom workspace names are preserved. Pane labels show `shell` when no
+recognised agent owns the foreground job, and the herd uses readable agent
+names such as `opencode`.
 
 ## Native builds and downloads
 
@@ -77,7 +81,8 @@ For example, a Starship installation still uses its normal zshrc line:
 eval "$(starship init zsh)"
 ```
 
-**Appearance** sets the desktop palette and terminal font. The default is the bundled JetBrains Mono Nerd Font, including Powerline and
+**Settings** sets the desktop palette, terminal font and rich-output preference.
+The default is the bundled JetBrains Mono Nerd Font, including Powerline and
 Nerd Font prompt symbols. An installed font can override it; the bundled font
 stays in the fallback chain for symbols missing from that font. Prompt themes
 come from zsh/Starship/Oh My Zsh; their ANSI colours are preserved. The desktop
@@ -152,7 +157,7 @@ removed. Block interpretation skips the cursor row, soft-wrapped rows, existing
 ANSI-styled output and alternate-screen applications. Input styling is applied
 separately, with source delimiters preserved. For complete document layout,
 including tables and reflowing paragraphs, use `md` or `herdstead render`.
-Toggle **Rich output** off whenever literal output is preferable.
+Disable **Rich terminal output** in Settings whenever literal output is preferable.
 
 Links in output remain Cmd/Ctrl-clickable; URLs open externally and file paths
 open in a viewer. Folder trees, code and Markdown viewers remain available from
@@ -178,7 +183,7 @@ The shortcut modifier is Cmd on macOS and Ctrl on Linux.
 | Cmd/Ctrl+1–9 | select tab |
 | Cmd/Ctrl+B | toggle Files |
 | Cmd/Ctrl+F | find matching rows in visible output |
-| Cmd/Ctrl+, | appearance |
+| Cmd/Ctrl+, | settings |
 | Cmd/Ctrl+plus/minus | change terminal font size |
 
 Each pane header has **split right**, **split down**, **zoom/restore** and
@@ -187,7 +192,11 @@ was previously focused.
 
 Drag between panes to resize. Scroll over a shell to move through daemon
 scrollback, and click its scroll offset to return to live output. Viewer panes
-scroll independently in the client. Appearance includes **Check for updates** and **Install update and restart**.
+scroll independently in the client. Settings includes **Check for updates** and **Install update and restart**.
+On macOS, the **Herdstead** application menu also offers **Check for Updates…**
+and **Settings…** (Cmd+,), alongside About, Hide and Quit. Checking opens Settings
+and reports the result; installing an available update remains an explicit action.
+Linux exposes Settings and update checking in the Herdstead menu too.
 The command palette also offers rename,
 focus cycling, a folder tree viewer, scrolling and copying the visible output.
 Search covers the current viewport, not the entire scrollback. Files over
@@ -229,4 +238,5 @@ page and real daemon, and substitutes only Tauri's invoke/event transport. It
 checks input Markdown/source preservation, link-logo activation, splits, tabs,
 in-terminal Markdown, file viewers, shell `@path`, themes,
 the command palette and resizing. Native webview/IPC and folder picking also
-need a smoke test in the actual Tauri window.
+need a smoke test in the actual Tauri window, along with the native application
+menu and Cmd+, accelerator.

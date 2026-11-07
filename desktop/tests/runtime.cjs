@@ -18,6 +18,7 @@ function runtime(onEvent = () => {}, options = {}) {
   assert.ok(fs.existsSync(binary), 'Build the Herdstead runtime with cargo build first');
   const cwd = path.join(root, 'project');
   const env = { ...process.env, HERDSTEAD_CONFIG_DIR: path.join(root, 'config'), HERDSTEAD_STATE_DIR: path.join(root, 'state'), HERDSTEAD_RUNTIME_DIR: path.join(root, 'run'), HERDSTEAD_CWD: cwd, HERDSTEAD_SESSION: 'desktop-test', HERDSTEAD_BIN: binary, ZDOTDIR: path.join(root, 'zsh'), HERDSTEAD_SHELL_INTEGRATION: options.integration ? '1' : '' };
+  if (options.home) env.HOME = fs.realpathSync(cwd);
   const child = spawn(binary, ['-s', 'desktop-test', 'desktop-bridge'], { cwd, env });
   const pending = new Map(); let id = 0, latest, ready;
   createInterface({ input: child.stdout }).on('line', line => {

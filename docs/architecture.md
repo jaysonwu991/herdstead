@@ -170,9 +170,11 @@ a small OSC tracker over the last 4 KiB of output to pick up the window title
 by cell (wide continuations skipped, wide characters kept once, runs merged) and
 clipped to the pane rect.
 
-Agent detection runs on a tick, not per byte: the pane's text tail (40 lines),
-how long it has been quiet, and whether the process exited. That is cheap enough
-to do for every pane four times a second and precise enough for the sidebar.
+Agent detection runs on a tick, not per byte. The PTY's foreground process group
+identifies the current job; its command is queried when the group changes.
+Returning control to the shell clears the agent, even if an old banner or title
+remains visible. Generated pane labels never feed back into detection. Status
+uses the pane's text tail (40 lines), quiet time and process exit state.
 
 ### Layout
 
@@ -248,6 +250,9 @@ returns a bounded shallow listing; `viewer` invokes the existing client viewer;
 `preview` renders Markdown; `theme` changes the bridge's client-local
 palette; `rich_output` switches client-side output interpretation. Replies echo the id and carry either `value` or `error`. Theme changes
 refresh snapshots without changing the daemon's settings.
+The bridge's `ready` event also supplies the client's home directory as `home`.
+The desktop abbreviates home paths and automatic home workspace labels to `~`,
+preserving absolute runtime paths and custom workspace names.
 On stdin EOF or an input error, the bridge shuts down its socket and joins the
 event reader before exiting, so a snapshot already being written reaches stdout
 as a complete JSON frame. The independent session daemon remains running.
@@ -273,6 +278,10 @@ chrome and resize handles are keyed separately, wheel events are combined per
 animation frame, resize events are debounced, and viewer reads are cached for a
 second. Row signatures stay in client memory rather than DOM attributes. Files
 and Markdown never become executable HTML.
+The native application menu emits fixed `herdstead:command` events for Settings
+and update checking. The client opens the same Settings dialog used by the
+sidebar and Cmd/Ctrl+comma. An update check reports availability; installation
+still requires the explicit install button.
 
 ### Shell integration and output interpretation
 

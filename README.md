@@ -27,7 +27,7 @@ is needed. Windows is not supported because the session runtime uses Unix socket
 Linux requires glibc and the system webview; see [getting started](docs/getting-started.md).
 Downloads include `SHA256SUMS` for verification.
 
-Open **Appearance → Check for updates**, then **Install update and restart**.
+Open **Settings → Check for updates**, then **Install update and restart**.
 Updates are signed and verified before installation. Linux in-app updates use
 the AppImage; Debian installations update by installing a newer `.deb`.
 macOS packages are not currently Apple Developer ID signed or notarised; see
@@ -36,7 +36,7 @@ if macOS reports that Herdstead.app is damaged or blocks opening it.
 
 ## Use a workspace
 
-Launch Herdstead and use **+** beside Workspaces to choose your project folder.
+Launch Herdstead and use **+** beside Spaces to choose your project folder.
 Start your coding agent in a terminal. Split panes with Cmd/Ctrl+D, open a tab
 with Cmd/Ctrl+T, and find all commands with Cmd/Ctrl+Shift+P. Closing the window
 leaves the session's shells running; reopening reconnects to the session.
@@ -46,8 +46,8 @@ Type `@` for path completion. Use `cat README.md` for rendered Markdown,
 `cat src/main.rs` for highlighted code, and `tree .` for a directory tree.
 Existing aliases and piped `cat` commands retain their normal behaviour.
 
-Choose a theme and terminal font in **Appearance**. The bundled JetBrains Mono Nerd Font includes prompt symbols. Click files in the explorer to open a viewer; use
-Cmd/Ctrl-click for links in terminal text. **Rich output** toggles Markdown
+Choose a theme and terminal font in **Settings**. The bundled JetBrains Mono Nerd Font includes prompt symbols. Click files in the explorer to open a viewer; use
+Cmd/Ctrl-click for links in terminal text. **Rich terminal output** in Settings toggles Markdown
 interpretation without changing the terminal's bytes or row coordinates.
 
 [Documentation](docs/README.md) · [Desktop controls](docs/desktop.md) ·

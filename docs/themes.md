@@ -18,7 +18,7 @@ Change the theme and the whole surface changes with it.
 Aliases: `dark` and `default` mean `midnight`, `light` means `daylight`,
 `solarized-light` means `solarized`.
 
-Choose a theme in **Appearance**. The desktop saves that choice in webview
+Choose a theme in **Settings**. The desktop saves that choice in webview
 storage and reapplies it when reconnecting. The bridge initially loads the
 runtime helper's `--theme`, `HERDSTEAD_THEME` or configured `theme`, in that order.
 An unknown startup theme falls back to `midnight` with a warning.
@@ -26,7 +26,7 @@ An unknown startup theme falls back to `midnight` with a warning.
 ## Theme files
 
 Drop a JSON file in `~/.config/herdstead/themes/` and it appears in
-`herdstead themes` and the Appearance selector:
+`herdstead themes` and the Settings selector:
 
 ```json
 {
@@ -92,7 +92,7 @@ default.
 | `accent_alt` | transient status messages and hover |
 | `border` | pane borders, dividers, rules, sidebar divider |
 | `border_focus` | the focused pane, completion and overlay borders |
-| `selection` | the selected row in the completion popup and the Appearance selector |
+| `selection` | the selected row in the completion popup and the Settings selector |
 | `tab_active_bg`, `tab_active_fg` | the active tab |
 | `tab_fg` | inactive tabs |
 | `chip_bg`, `chip_fg` | the workspace chip at the left of the tab strip |
@@ -138,5 +138,5 @@ colour to grey by luminance, so structure survives without hue.
 
 ## Reloading
 
-Selecting a theme in Appearance re-renders immediately. Restart the desktop
+Selecting a theme in Settings re-renders immediately. Restart the desktop
 bridge to reload configuration changes; existing daemons retain their settings.

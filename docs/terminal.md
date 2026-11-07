@@ -3,7 +3,7 @@
 The desktop uses a real PTY for every shell pane. Split right with Cmd/Ctrl+D,
 split down with Cmd/Ctrl+Shift+D, and open a tab with Cmd/Ctrl+T. Pane headers
 provide split, zoom and close buttons. Drag a divider to resize, click a pane to
-focus it, and use the sidebar to select workspaces. Use **+** beside Workspaces
+focus it, and use the sidebar to select workspaces. Use **+** beside Spaces
 to pick a project folder.
 
 The cursor blinks while the terminal has keyboard focus and becomes an outline

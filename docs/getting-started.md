@@ -43,7 +43,7 @@ The runtime is bundled inside the app; no shell installer or CLI is needed.
 
 ## Your first workspace
 
-Launch Herdstead. Use **+** beside Workspaces to select a project folder and
+Launch Herdstead. Use **+** beside Spaces to select a project folder and
 start `claude`, `codex`, `gemini` or another agent in a terminal pane.
 The sidebar shows detected agents and their status.
 
@@ -53,7 +53,7 @@ The sidebar shows detected agents and their status.
 | Cmd/Ctrl+Shift+D | split down |
 | Cmd/Ctrl+T | new terminal tab |
 | Cmd/Ctrl+Shift+P | command palette |
-| Cmd/Ctrl+, | appearance and updates |
+| Cmd/Ctrl+, | settings and updates |
 | click a file in Files | open a rich viewer |
 
 Your zsh startup files load normally. Type `cat @REA` and press Tab to complete
@@ -68,7 +68,7 @@ restart as fresh processes. See [sessions](sessions.md).
 
 ## Updates
 
-Open **Appearance → Check for updates**. If a newer version is available, choose
+Open **Settings → Check for updates**. If a newer version is available, choose
 **Install update and restart**. The app downloads and verifies the signed update
 before replacing the installed app and restarting. Daemons and panes stay running.
 Existing daemons continue using their original runtime until you stop the session.
@@ -77,6 +77,6 @@ system-wide Applications folder is not writable.
 
 Linux in-app updates apply to AppImages. For `.deb` installs, download the newer
 package and run `sudo apt install ./Herdstead-linux-x64.deb` again.
-The update check requires an internet connection; failures appear in Appearance
+The update check requires an internet connection; failures appear in Settings
 and can be retried. Before the first desktop release, the update endpoint is
 unavailable. For source builds see [Desktop](desktop.md).

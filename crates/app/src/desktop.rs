@@ -195,7 +195,7 @@ pub fn run(
     emit(&json!({"type": "ready", "theme": initial_theme.name,
         "palette": palette(&initial_theme),
         "themes": Theme::catalog(&paths.themes_dir()).iter().map(|t| &t.name).collect::<Vec<_>>(),
-        "cwd": cwd}))?;
+        "cwd": cwd, "home": std::env::var_os("HOME").map(PathBuf::from)}))?;
     drop(initial_theme);
     let render_theme = Arc::clone(&theme);
     let rich = Arc::new(std::sync::atomic::AtomicBool::new(true));

@@ -137,7 +137,6 @@ enum Msg {
     PaneOutput {
         pane: PaneId,
         bytes: Vec<u8>,
-        title: Option<String>,
         cwd: Option<PathBuf>,
     },
     PaneExited {
@@ -213,8 +212,6 @@ struct Runtime {
     tx: Sender<Msg>,
     pane_area: Rect,
     start_cwd: PathBuf,
-    /// Panes whose title an application set through OSC; those are left alone.
-    titled: HashSet<PaneId>,
     dirty: bool,
     quit: bool,
     last_tick: Instant,
@@ -245,7 +242,6 @@ impl Runtime {
             tx,
             pane_area: Rect::new(0, 1, 78, 37),
             start_cwd: cwd.clone(),
-            titled: HashSet::new(),
             dirty: true,
             quit: false,
             last_tick: Instant::now(),
@@ -446,12 +442,7 @@ impl Runtime {
             Msg::Disconnected { id } => {
                 self.clients.remove(&id);
             }
-            Msg::PaneOutput {
-                pane,
-                bytes,
-                title,
-                cwd,
-            } => {
+            Msg::PaneOutput { pane, bytes, cwd } => {
                 if let Some(pty) = self.panes.get_mut(&pane) {
                     pty.parser.process(&bytes);
                     pty.last_output = Instant::now();
@@ -459,12 +450,6 @@ impl Runtime {
                 if let Some(meta) = self.state.panes.get_mut(&pane) {
                     meta.last_output_ms = now_ms();
                     meta.bell = false;
-                    if let Some(title) = title {
-                        if !title.trim().is_empty() {
-                            meta.title = title;
-                            self.titled.insert(pane);
-                        }
-                    }
                     if let Some(cwd) = cwd {
                         if cwd.is_dir() {
                             meta.cwd = cwd;
@@ -868,19 +853,17 @@ impl Runtime {
                 || self.panes.get(&pane).map(|pty| pty.closed).unwrap_or(true);
             let quiet = now.saturating_sub(meta.last_output_ms);
             let status = detect::classify(&text, quiet, exited);
-            let agent = AgentKind::detect(&meta.command, &meta.title)
-                .or_else(|| detect::agent_from_text(&text));
-            let cwd_title = meta
-                .cwd
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "shell".to_string());
-            let app_titled = self.titled.contains(&pane);
-            // An agent's name is more useful than the folder behind it.
+            let agent = if exited {
+                None
+            } else {
+                self.panes
+                    .get_mut(&pane)
+                    .and_then(|pty| pty.foreground_command())
+                    .and_then(|command| AgentKind::detect(command, ""))
+            };
             let title = match &agent {
-                Some(agent) => Some(format!("{} {}", agent.glyph(), agent.label())),
-                None if !app_titled => Some(cwd_title),
-                None => None,
+                Some(agent) => format!("{} {}", agent.glyph(), agent.label()),
+                None => "shell".to_string(),
             };
             if let Some(meta) = self.state.panes.get_mut(&pane) {
                 if meta.status != status || meta.agent != agent {
@@ -888,11 +871,9 @@ impl Runtime {
                 }
                 meta.status = status;
                 meta.agent = agent;
-                if let Some(title) = title {
-                    if meta.title != title {
-                        meta.title = title;
-                        changed = true;
-                    }
+                if meta.title != title {
+                    meta.title = title;
+                    changed = true;
                 }
             }
         }

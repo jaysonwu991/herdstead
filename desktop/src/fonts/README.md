@@ -7,7 +7,7 @@ common Starship and Oh My Zsh prompts. The monospaced, non-ligature variant
 preserves the terminal grid. The browser synthesises bold and italic styles.
 
 The font is served from the app's local assets and requires no network or
-system font installation. Appearance can select a different installed font;
+system font installation. Settings can select a different installed font;
 the bundled font remains the fallback for missing symbols. The client waits
 for it to load before measuring cells and attaching to the PTY.
 

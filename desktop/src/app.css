@@ -22,3 +22,72 @@ dialog{background:var(--panel);color:var(--fg);border:1px solid var(--border);bo
 body:not(.terminal-focused) .pane .cursor,.pane:not(.focused) .cursor{animation:none;background:transparent;border:1px solid var(--muted)}
 @keyframes terminal-cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.pane.focused .cursor{animation:none}}
+
+/* Chrome icons use fixed geometry rather than font-dependent symbol glyphs. */
+.ui-icon{width:16px;height:16px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;pointer-events:none}
+.toolbar button,#terminal-tools button{display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.toolbar button span{margin-left:0}
+.file-row .file-icon{width:16px;height:16px;flex-shrink:0;display:grid;place-items:center}
+.pane-controls .ui-icon{width:16px;height:16px}
+
+/* Keep the workspace around the terminal as compact as the native reference. */
+#sidebar{width:266px;background:var(--bg)}
+.brand{height:46px;padding:0 12px 0 80px;gap:8px;flex-shrink:0}
+.brand img{width:20px;height:20px}
+.brand strong{font-size:14px;font-weight:600;letter-spacing:0}
+.brand button{padding:5px;margin-left:0}
+.brand #find-button{margin-left:auto}
+.section-heading{padding:14px 16px 10px;font-size:12px;font-weight:400;letter-spacing:0}
+.section-heading button{font-size:20px}
+nav button.workspace{width:calc(100% - 16px);margin:2px 8px;padding:6px 8px;gap:9px;min-height:32px}
+.workspace .initial{width:20px;height:20px;border-radius:5px;font-size:12px}
+.workspace .name{font-size:13px}
+.workspace .dot{display:none}
+.agents-section{min-height:230px;max-height:34vh;flex-shrink:0;border-top:1px solid var(--border)}
+.agents-section .empty{padding:0 12px;margin:0;line-height:1.8;font-size:12px}
+.count{border:0;padding:0;min-width:auto;font-size:11px}
+.agent{padding:8px 12px}
+.agent .agent-icon{width:24px;height:24px}
+.sidebar-footer{margin-top:0;padding:5px 8px;flex-shrink:0}
+.sidebar-footer button{padding:7px 8px;gap:9px}
+#topbar{height:44px;padding:0 10px;gap:8px}
+#tabs{max-width:calc(100% - 130px)}
+.tab{min-width:68px;gap:9px;padding:6px 9px;border:1px solid transparent}
+.tab.active{border-color:var(--border);background:var(--selection)}
+.tab .close-tab{padding-left:0;font-size:15px}
+#new-tab{margin-left:auto;padding:4px 7px;font-size:19px}
+.toolbar{margin-left:0}
+.toolbar button{padding:5px 9px;font-size:12px}
+#content{padding:8px 8px 8px;gap:8px}
+#terminal-column{border:0;border-radius:0;background:var(--panel)}
+#panes{min-height:120px}
+.pane{border-radius:10px;background:var(--bg)}
+.pane-header{height:var(--pane-header-height);padding:0 11px;gap:9px;font-size:12px;background:transparent;border-bottom:1px solid var(--border)}
+.pane-header .title{font-weight:500}
+.pane-header .cwd{font-size:12px}
+.pane-controls button{height:24px;width:24px}
+.pane-controls{gap:3px;opacity:0}
+.pane:hover .pane-controls,.pane:focus-within .pane-controls{opacity:1}
+.screen{top:var(--pane-header-height);background:var(--bg)}
+#files{width:29%;min-width:240px;max-width:440px;border-radius:10px}
+#files>header{height:40px;padding:10px 14px}
+#files strong{font-size:13px}
+#file-breadcrumb{padding:10px 14px 4px;font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.file-filter{margin:5px 10px 8px}
+.file-row{padding-top:6px;padding-bottom:6px}
+#files>footer{display:none}
+#statusbar{height:26px;padding:0 10px;font-size:11px}
+.computer-label{display:inline-flex;align-items:center;gap:7px}
+.computer-label .ui-icon{width:14px;height:14px}
+#settings{width:460px}
+#settings h2{font-size:22px}
+#settings #rich-output-button{padding:5px 10px;min-width:80px;font-size:12px}
+@media(max-width:1150px){#sidebar{width:220px}.brand{padding-left:76px;gap:5px}.brand strong{font-size:12px}.brand img{width:17px;height:17px}.brand button{padding:3px}#files{width:27%;min-width:210px}#content{gap:8px;padding:8px}.toolbar span{display:inline}.agents-section{min-height:190px}}
+
+.file-row.directory .file-icon{width:36px;display:flex;gap:4px}
+
+:root{--pane-header-height:min(30px,calc(var(--line-height) * 2 - 2px))}
+#files>header{gap:8px}
+#file-breadcrumb{min-width:0;margin-left:auto;padding:0;color:var(--muted);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#refresh-files{opacity:0}
+#files:hover #refresh-files,#refresh-files:focus-visible{opacity:1}

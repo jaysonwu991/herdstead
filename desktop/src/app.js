@@ -2,7 +2,7 @@
 const $ = selector => document.querySelector(selector);
 const api = window.herdstead;
 const state = {
-  snapshot: null, screens: {}, connected: false, theme: '', themes: [], cwd: '',
+  snapshot: null, screens: {}, connected: false, theme: '', themes: [], cwd: '', home: '',
   fontSize: Number(localStorage.getItem('fontSize')) || 14,
   files: localStorage.getItem('files') !== 'false', rich: localStorage.getItem('richOutput') !== 'false',
   fontFamily: localStorage.getItem('fontFamily') || '',
@@ -40,23 +40,43 @@ function el(tag, className, text) {
   if (text !== undefined) node.textContent = text; return node;
 }
 function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
-function paneIcon(button, kind) {
+function uiIcon(kind) {
   const paths = {
     right: 'M4 5h16v14H4z M12 5v14',
     down: 'M4 5h16v14H4z M4 12h16',
     zoom: 'M14 4h6v6 M20 4l-7 7 M10 20H4v-6 M4 20l7-7',
     close: 'M6 6l12 12 M18 6L6 18',
+    search: 'M15.5 15.5L21 21 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
+    settings: 'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
+    chevronRight: 'M9 5l7 7-7 7',
+    chevronDown: 'M5 9l7 7 7-7',
+    file: 'M5 3h9l5 5v13H5z M14 3v6h5',
+    files: 'M4 3h16v18H4z M8 7h8 M8 11h8 M8 15h8',
+    refresh: 'M20 8a9 9 0 1 0 1 7 M20 3v6h-6',
+    sparkle: 'M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z',
+    computer: 'M3 4h18v13H3z M8 21h8 M12 17v4',
+    folder: 'M3 5h7l2 3h9v12H3z',
   };
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true'); svg.classList.add('ui-icon');
   const path = document.createElementNS(svg.namespaceURI, 'path');
-  path.setAttribute('d', paths[kind]); svg.append(path); button.replaceChildren(svg);
+  path.setAttribute('d', paths[kind]); svg.append(path); return svg;
 }
+function paneIcon(button, kind) { button.replaceChildren(uiIcon(kind)); }
+document.querySelectorAll('[data-icon]').forEach(node => node.replaceWith(uiIcon(node.dataset.icon)));
 function showError(message) {
   $('#banner span').textContent = message; $('#banner').hidden = false;
 }
 function focused() { return state.snapshot?.panes.find(p => p.id === state.snapshot.focused); }
 function workspace() { return state.snapshot?.workspaces[state.snapshot.active_workspace]; }
+function displayPath(path) {
+  const home = state.home.replace(/\/$/, '');
+  return home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path;
+}
+function workspaceName(item) {
+  return displayPath(item.dir) === '~' && item.name === item.dir.split('/').pop() ? '~' : item.name;
+}
+function agentLabel(agent) { return typeof agent === 'string' ? agent === 'open_code' ? 'opencode' : agent : agent?.other || ''; }
 function terminalFocus() { if (!document.querySelector('dialog[open]')) $('#terminal-input').focus({ preventScroll: true }); }
 function restoreTerminalFocus() {
   const active = document.activeElement;
@@ -118,16 +138,13 @@ function scheduleRender() {
 function renderChrome() {
   const snap = state.snapshot, ws = workspace();
   if (!snap || !ws) return;
-  $('#workspace-name').textContent = ws.name;
-  $('#workspace-path').textContent = ws.dir;
-  $('#session-name').textContent = snap.session;
-  $('#terminal-status').textContent = `${snap.panes.length} ${snap.panes.length === 1 ? 'pane' : 'panes'} · ${snap.zoomed ? 'focus mode' : 'live terminal'}`;
-  $('#pane-count').textContent = snap.panes.length;
+  $('#session-name').textContent = snap.session === ws.name ? workspaceName(ws) : snap.session;
   $('#dimensions').textContent = focused()?.grid ? `${focused().grid.cols} × ${focused().grid.rows} · UTF-8` : 'Rich viewer';
   const workspaces = $('#workspaces'); workspaces.replaceChildren();
   snap.workspaces.forEach((item, index) => {
     const node = button('', item.dir, () => action({ type: 'select_workspace', index }), `workspace ${index === snap.active_workspace ? 'active' : ''}`);
-    node.append(el('span', 'initial', item.name.slice(0, 1).toUpperCase()), el('span', 'name', item.name), el('span', 'dot'));
+    const name = workspaceName(item);
+    node.append(el('span', 'initial', name.slice(0, 1).toUpperCase()), el('span', 'name', name), el('span', 'dot'));
     node.lastChild.style.background = colorStatus(item.status); workspaces.append(node);
   });
   const tabs = $('#tabs'); tabs.replaceChildren();
@@ -140,13 +157,7 @@ function renderChrome() {
     }));
     node.append(el('span', '', '❯_'), el('span', '', tab.name), close); tabs.append(node);
   });
-  const paneList = $('#pane-list'); paneList.replaceChildren();
-  snap.panes.forEach((pane, index) => {
-    const node = button('', `Focus ${pane.title}`, () => focusPane(pane.id), pane.id === snap.focused ? 'active' : '');
-    node.append(el('span', 'pane-index', String(index + 1).padStart(2, '0')), el('span', 'pane-title', pane.title), el('span', 'dot'));
-    node.lastChild.style.background = colorStatus(pane.status); paneList.append(node);
-  });
-  const agents = snap.workspaces.flatMap((item, index) => item.tabs.filter(tab => tab.agent).map(tab => ({ ...tab, workspaceIndex: index, workspaceName: item.name, tabIndex: item.tabs.indexOf(tab) })));
+  const agents = snap.workspaces.flatMap((item, index) => item.tabs.filter(tab => tab.agent).map(tab => ({ ...tab, agent: agentLabel(tab.agent), workspaceIndex: index, workspaceName: workspaceName(item), tabIndex: item.tabs.indexOf(tab) })));
   $('#agent-count').textContent = agents.length;
   $('#agents').replaceChildren();
   if (!agents.length) $('#agents').append(el('p', 'empty', 'Agents appear here when they start working in a terminal. Your herd keeps running when you close the window.'));
@@ -224,7 +235,7 @@ function render() {
       view.zoom.title = snap.zoomed ? 'Restore pane layout' : 'Zoom pane';
       view.zoom.setAttribute('aria-label', view.zoom.title);
       setText(view.title, pane.title);
-      setText(view.cwd, pane.cwd); view.cwd.title = pane.cwd;
+      setText(view.cwd, displayPath(pane.cwd)); view.cwd.title = pane.cwd;
       setText(view.offset, pane.grid?.offset ? `↑ ${pane.grid.offset} · click for live` : pane.exit_code !== null ? `exit ${pane.exit_code}` : '');
     }
     view.offset.onclick = () => safely(() => action({ type: 'scroll_to_bottom', pane: pane.id }))();
@@ -322,7 +333,7 @@ async function loadFiles() {
   const listing = await request({ type: 'directory', path: state.fileRoot });
   if (generation !== state.directoryGeneration) return;
   state.fileEntries = listing.entries; state.directoryCache.set(state.fileRoot, listing.entries);
-  $('#file-breadcrumb').textContent = listing.path; $('#file-breadcrumb').title = listing.path;
+  $('#file-breadcrumb').textContent = displayPath(listing.path).split('/').pop() || '/'; $('#file-breadcrumb').title = listing.path;
   renderFiles();
   if (listing.truncated) showError('The file list reached the configured tree entry limit.');
 }
@@ -347,7 +358,11 @@ function renderFiles() {
         } else { await action({ type: 'open_viewer', path: entry.path }); terminalFocus(); }
       }, `file-row ${entry.directory ? 'directory' : ''}`);
       node.style.paddingLeft = `${9 + depth * 13}px`;
-      node.append(el('span', 'file-icon', entry.directory ? (state.expanded.has(entry.path) ? '▾' : '▸') : '▫'), el('span', 'file-name', entry.name));
+      const icon = el('span', 'file-icon');
+      icon.append(uiIcon(entry.directory ? (state.expanded.has(entry.path) ? 'chevronDown' : 'chevronRight') : 'file'));
+      if (entry.directory) icon.append(uiIcon('folder'));
+      if (entry.directory) node.setAttribute('aria-expanded', state.expanded.has(entry.path));
+      node.append(icon, el('span', 'file-name', entry.name));
       if (!entry.directory && entry.name.includes('.')) node.append(el('span', 'extension', entry.name.split('.').pop().toUpperCase()));
       root.append(node);
       if (entry.directory && state.expanded.has(entry.path)) append(state.directoryCache.get(entry.path) || [], depth + 1);
@@ -365,6 +380,7 @@ async function toggleRich() {
   await request({ type: 'rich_output', enabled: state.rich });
   localStorage.setItem('richOutput', state.rich);
   $('#rich-output-button').setAttribute('aria-pressed', state.rich);
+  $('#rich-output-button').textContent = state.rich ? 'Enabled' : 'Disabled';
 }
 async function addWorkspace() { const dir = await api.folder(); if (dir) await action({ type: 'new_workspace', dir }); }
 let findQuery = '';
@@ -384,8 +400,10 @@ function palette() {
   $('#palette').showModal(); $('#command-input').value = ''; state.paletteIndex = 0; renderCommands(); $('#command-input').focus();
 }
 function settings() {
+  if ($('#palette').open) $('#palette').close();
   $('#theme-select').replaceChildren(...state.themes.map(name => { const option = el('option', '', name); option.value = name; return option; }));
-  $('#theme-select').value = state.theme; $('#font-family').value = state.fontFamily; $('#settings').showModal();
+  $('#theme-select').value = state.theme; $('#font-family').value = state.fontFamily;
+  if (!$('#settings').open) $('#settings').showModal();
 }
 const commands = [
   ['New terminal tab', '⌘ T', () => action({ type: 'new_tab' })],
@@ -399,7 +417,7 @@ const commands = [
   ['Find in visible terminal output', '⌘ F', openFind],
   ['Toggle file explorer', '⌘ B', toggleFiles],
   ['Toggle rich terminal output', '', toggleRich],
-  ['Appearance and themes', '⌘ ,', settings],
+  ['Settings and appearance', '⌘ ,', settings],
   ['Open workspace folder tree', '', () => action({ type: 'open_viewer', path: workspace()?.dir || state.cwd, kind: 'tree' })],
   ['Scroll focused pane to top', '', () => focused() && action({ type: 'scroll_to_top', pane: focused().id })],
   ['Return focused pane to live output', '', () => focused() && action({ type: 'scroll_to_bottom', pane: focused().id })],
@@ -430,7 +448,7 @@ async function rename(kind) {
 }
 function receive(event) {
   if (event.type === 'ready') {
-    state.connected = true; state.cwd = event.cwd; state.theme = event.theme; state.themes = event.themes;
+    state.connected = true; state.cwd = event.cwd; state.home = event.home || ''; state.theme = event.theme; state.themes = event.themes;
     applyPalette(event.palette); state.dimensions = ''; resize();
     if (!state.rich) safely(() => request({ type: 'rich_output', enabled: false }))();
     const saved = localStorage.getItem('theme'); if (saved && saved !== event.theme) safely(() => setTheme(saved))();
@@ -491,9 +509,6 @@ document.addEventListener('keydown', safely(async event => {
 }), true);
 on('#palette-button', 'click', palette); on('#status-commands', 'click', palette);
 on('#new-tab', 'click', () => action({ type: 'new_tab' })); on('#add-workspace', 'click', addWorkspace);
-on('#split-right', 'click', () => action({ type: 'split', dir: 'vertical' }));
-on('#split-down', 'click', () => action({ type: 'split', dir: 'horizontal' }));
-on('#zoom-button', 'click', () => action({ type: 'toggle_zoom' }));
 on('#files-button', 'click', toggleFiles); on('#refresh-files', 'click', () => { state.directoryCache.clear(); state.expanded.clear(); return loadFiles(); });
 on('#file-filter', 'input', renderFiles); on('#rich-output-button', 'click', toggleRich);
 on('#find-button', 'click', openFind); on('#find-input', 'input', find); on('#find-close', 'click', closeFind);
@@ -513,9 +528,14 @@ on('#command-input', 'keydown', async event => {
     event.preventDefault(); $('#palette').close(); await state.commands[state.paletteIndex][2]();
   }
 });
-api.onEvent(receive); api.onCommand(command => { if (command === 'palette' && !$('#palette').open) palette(); });
+api.onEvent(receive); api.onCommand(safely(command => {
+  if (command === 'palette' && !$('#palette').open) palette();
+  else if (command === 'settings') settings();
+  else if (command === 'check-for-updates') { settings(); if (!$('#check-update').disabled) return checkUpdate(); }
+}));
 $('#files').hidden = !state.files; $('#files-button').setAttribute('aria-pressed', state.files);
 $('#rich-output-button').setAttribute('aria-pressed', state.rich);
+$('#rich-output-button').textContent = state.rich ? 'Enabled' : 'Disabled';
 safely(async () => {
   // PTY geometry must use the loaded font, not a temporary system fallback.
   try { await document.fonts.load(`${state.fontSize}px "Herdstead Mono"`); }

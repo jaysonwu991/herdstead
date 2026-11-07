@@ -100,10 +100,7 @@ impl PaneMeta {
     pub fn shell(id: PaneId, cwd: impl Into<PathBuf>, command: impl Into<String>) -> Self {
         let cwd = cwd.into();
         let command = command.into();
-        let title = cwd
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| cwd.display().to_string());
+        let title = "shell".to_string();
         Self {
             id,
             title,

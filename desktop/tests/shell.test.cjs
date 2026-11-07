@@ -5,6 +5,23 @@ const path = require('node:path');
 const { runtime } = require('./runtime.cjs');
 const shell = ['/bin/zsh', '/usr/bin/zsh'].find(file => fs.existsSync(file));
 const plain = event => event.snapshot.panes.map(pane => pane.grid?.lines.map(line => line.runs.map(run => run.text).join('')).join('\n') || '').join('\n');
+test('agent labels follow the foreground job and clear when the shell returns', { skip: !shell, timeout: 30000 }, async () => {
+  const run = runtime(() => {}, { shell, integration: true });
+  const action = action => run.request({ type: 'action', action });
+  try {
+    await run.wait(event => plain(event).includes('HS>') && event.snapshot.panes[0].title === 'shell');
+    for (const agent of ['oxide', 'opencode']) {
+      const executable = path.join(run.cwd, agent);
+      fs.writeFileSync(executable, '#!/bin/sh\nsleep "$@"\n', { mode: 0o755 });
+      await action({ type: 'send_text', text: `./${agent} 60`, submit: true });
+      await run.wait(event => event.snapshot.panes[0].agent === (agent === 'opencode' ? 'open_code' : agent), `${agent} foreground job`);
+      await action({ type: 'key', input: { key: { char: 'c' }, mods: { ctrl: true } } });
+      await run.wait(event => !event.snapshot.panes[0].agent && event.snapshot.panes[0].title === 'shell', 'shell after agent exit');
+    }
+    await action({ type: 'send_text', text: `printf '\\033]2;oxide\\007oxide opencode\\n'`, submit: true });
+    await run.wait(event => plain(event).includes('oxide opencode') && event.snapshot.panes[0].title === 'shell' && !event.snapshot.panes[0].agent, 'old titles and output do not identify agents');
+  } finally { await run.close(); }
+});
 test('real zsh completes and expands @paths, honours zshrc and keeps pipelines raw', { skip: !shell, timeout: 30000 }, async () => {
   const run = runtime(() => {}, { shell, integration: true, zshrc: `PROMPT='USER-PROMPT> '\nexport HERDSTEAD_USER_PROMPT=kept\n` });
   try {
