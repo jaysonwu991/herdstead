@@ -1,172 +1,80 @@
 # Getting started
 
-## Install
+## Download and install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/jaysonwu991/herdstead/main/install.sh | sh
-```
+Open [Releases](https://github.com/jaysonwu991/herdstead/releases/latest) and
+choose your platform:
 
-That script is worth reading before you trust it
-([source](https://github.com/jaysonwu991/herdstead/blob/main/install.sh)): it
-asks `uname` for the platform, downloads the archive from the release, checks it
-against the `.sha256` beside it when available, and puts `herdstead` in `~/.local/bin`. If that
-folder is not on your `PATH` it prints the line to add. macOS (arm64 and x64)
-and Linux (x64 and arm64) are what it covers, and each of those has an archive
-attached to every [release](https://github.com/jaysonwu991/herdstead/releases).
-
-- `HERDSTEAD_INSTALL_DIR=/usr/local/bin` installs somewhere else.
-- `HERDSTEAD_VERSION=v0.1.1` pins a release instead of taking the latest.
-- `sh install.sh --help` prints the same overrides.
-
-Fetched by hand instead? Pick the archive for your platform, check it against
-the `.sha256` beside it, and move the binary where you want it:
-
-```bash
-asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64
-base=https://github.com/jaysonwu991/herdstead/releases/latest/download
-curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"
-shasum -a 256 -c "$asset.sha256"        # sha256sum -c on Linux
-tar -xzf "$asset" && sudo mv herdstead /usr/local/bin/
-```
-
-Or straight from the repository (macOS or Linux, Rust 1.82 or newer):
-
-```bash
-cargo install --git https://github.com/jaysonwu991/herdstead.git herdstead
-```
-
-That puts `herdstead` in `~/.cargo/bin`. To build locally instead:
-
-```bash
-git clone https://github.com/jaysonwu991/herdstead.git
-cd herdstead
-cargo build --release          # target/release/herdstead
-# or: cargo install --path crates/app
-```
-
-Build time and binary size depend on the toolchain and machine. The terminal
-binary requires no desktop libraries; prebuilt Linux binaries require glibc.
-
-## Desktop window
-
-For the native Tauri application, follow [Desktop](desktop.md). It uses the same
-session daemon and rich renderers, with a zsh terminal, file explorer and rich
-shell integration. Building the terminal binary alone does not require desktop libraries.
-
-## The first session
-
-Run it from the project you are working in:
-
-```bash
-cd ~/projects/my-app
-herdstead
-```
-
-The session is named after the folder (`my-app`). You get a shell pane with your
-`$SHELL`, a tab strip, a sidebar, a composer hint and a status bar:
-
-```
- ▦ my-app  1 shell ○                                              ctrl+b
- my-app            │ ┌ my-app ○ ────────────────────────────────┐
- WORKSPACES        │ │ sh-4.4$                                  │
-  ○ my-app       1 │ │                                          │
- TABS              │ │                                          │
-    ○ shell      1 │ │                                          │
- PANES             │ │                                          │
-    ○ my-app      │ │                                          │
-                   │ └──────────────────────────────────────────┘
- ❯ ctrl+b : prompt the agent · @path opens a file or folder · / commands
- my-app ~/projects/my-app  idle            midnight · ctrl+b prompt · prefix+? help
-```
-
-Type in the pane exactly as you would in a terminal. Everything that is not a
-pane is reached through the **prefix**: `ctrl+b` by default. Press it once, then
-the next key is a command.
-
-| try this | what happens |
+| computer | download |
 |---|---|
-| `ctrl+b ?` | the keybinding list |
-| `ctrl+b v` | split the pane side by side |
-| `ctrl+b s` | split it top and bottom |
-| `ctrl+b h/j/k/l` | move focus between panes |
-| `ctrl+b c` | a new tab |
-| `ctrl+b t` | the theme menu, with live preview |
-| `ctrl+b :` | the composer — type a prompt for the agent |
-| `ctrl+b q` | detach |
+| macOS Apple Silicon | `Herdstead-macos-arm64.dmg` |
+| macOS Intel | `Herdstead-macos-x64.dmg` |
+| Linux x64 | `Herdstead-linux-x64.AppImage` or `Herdstead-linux-x64.deb` |
+| Linux arm64 | `Herdstead-linux-arm64.AppImage` or `Herdstead-linux-arm64.deb` |
 
-Detaching leaves the panes running. Run `herdstead` in the folder again and you
-are back, with the same output, the same folders and the same split layout.
+On macOS, open the DMG and drag Herdstead to `/Applications`, then launch it.
+The current packages are not Apple Developer ID signed or notarised; first-launch
+help is in [troubleshooting](troubleshooting.md).
 
-## Talk to an agent
+On Linux, download the AppImage, make it executable and run it:
 
-Start your agent in a pane (`claude`, `codex`, `gemini`, …) and herdstead will
-label it in the sidebar with a status: `●` working, `◆` blocked on you, `○` idle.
-Then use the composer instead of typing into the pane:
-
-```
-ctrl+b :  explain @crates/render/src/markdown.rs and add a test for tables
+```sh
+chmod +x Herdstead-linux-x64.AppImage
+./Herdstead-linux-x64.AppImage
 ```
 
-`@` completes paths from the pane's folder; `Tab` accepts, `Enter` sends. The
-composer renders inline Markdown, validates references as you type (a missing one
-turns red) and can preview itself as rendered Markdown with `ctrl+p`.
+Substitute `arm64` for an ARM computer. AppImages need FUSE 2 support; on
+Ubuntu 22.04 install `libfuse2`. Alternatively use `--appimage-extract-and-run`.
+For Debian/Ubuntu packages:
 
-## Look at something
-
-Click a path in the output while holding the link modifier (Cmd on macOS), or use
-the composer:
-
-```
-/tree crates
-/md README.md
-/cat Cargo.toml
+```sh
+sudo apt install ./Herdstead-linux-x64.deb
 ```
 
-Each opens a viewer pane beside the shell: a folder tree, rendered Markdown, or a
-syntax-highlighted file. Viewers scroll with `j`/`k`, `g`/`G`, and close with `q`.
+The package manager resolves WebKitGTK 4.1 and other desktop dependencies.
+Install zsh for rich shell integration (`sudo apt install zsh`). Prebuilt Linux
+packages require glibc; Alpine/musl and Windows are not supported.
 
-## Without a TUI
+For download verification, fetch `SHA256SUMS` from the same release and compare
+the installer's `shasum -a 256` (macOS) or `sha256sum` (Linux) with its entry.
+The runtime is bundled inside the app; no shell installer or CLI is needed.
 
-The same renderers are available as ordinary commands, so they work in scripts
-and pipes:
+## Your first workspace
 
-```bash
-herdstead cat crates/app/src/main.rs        # syntax highlighting, line numbers
-herdstead tree crates            # folder tree with sizes
-herdstead md README.md           # rendered Markdown
-herdstead preview assets/        # whatever the path is, as a viewer would
-herdstead themes                 # palettes, with swatches
-herdstead keys                   # keybindings
-herdstead config                 # resolved configuration and paths
-```
+Launch Herdstead. Use **+** beside Workspaces to select a project folder and
+start `claude`, `codex`, `gemini` or another agent in a terminal pane.
+The sidebar shows detected agents and their status.
 
-`herdstead` refuses to attach when stdin or stdout is not a terminal, before it
-starts anything, and points at these commands instead.
-
-## Where things live
-
-| what | where |
+| try this | result |
 |---|---|
-| config | `~/.config/herdstead/config.toml` |
-| themes | `~/.config/herdstead/themes/*.json` |
-| saved layouts | `~/.local/state/herdstead/sessions/<name>.json` |
-| daemon logs | `~/.local/state/herdstead/logs/<name>.log` |
-| sockets | `$XDG_RUNTIME_DIR/herdstead/<name>.sock`, or the temporary directory fallback below |
+| Cmd/Ctrl+D | split right |
+| Cmd/Ctrl+Shift+D | split down |
+| Cmd/Ctrl+T | new terminal tab |
+| Cmd/Ctrl+Shift+P | command palette |
+| Cmd/Ctrl+, | appearance and updates |
+| click a file in Files | open a rich viewer |
 
-These are the default config and state paths. XDG and `HERDSTEAD_*_DIR`
-overrides are described in [configuration](configuration.md). Without
-`XDG_RUNTIME_DIR`, sockets live in the system temporary directory under
-`herdstead-<uid>/` (often `/tmp`, or `$TMPDIR` on macOS).
+Your zsh startup files load normally. Type `cat @REA` and press Tab to complete
+a file reference; Enter expands the reference to a safely quoted path and runs
+the command. `cat README.md` renders Markdown, `cat src/main.rs` highlights code,
+and `tree .` draws a folder tree. Existing aliases are preserved; `hcat` and
+`hmd` explicitly select the rich readers.
 
-Write a starter config with `herdstead init`; see
-[configuration](configuration.md) for every key. To stop a session, keep its
-layout, and remove its socket:
+Close the window to leave the session running. Reopen with the same launch
+folder/session to reconnect. Saved layouts survive a daemon restart, but shells
+restart as fresh processes. See [sessions](sessions.md).
 
-```bash
-herdstead ls
-herdstead kill my-app
-```
+## Updates
 
-Next: [sessions](sessions.md) explains what the daemon does and how restore
-works; [the composer](composer.md) is the page to read if you mainly want to
-prompt agents.
+Open **Appearance → Check for updates**. If a newer version is available, choose
+**Install update and restart**. The app downloads and verifies the signed update
+before replacing the installed app and restarting. Daemons and panes stay running.
+Existing daemons continue using their original runtime until you stop the session.
+Install to a writable location, such as your user's Applications folder if a
+system-wide Applications folder is not writable.
+
+Linux in-app updates apply to AppImages. For `.deb` installs, download the newer
+package and run `sudo apt install ./Herdstead-linux-x64.deb` again.
+The update check requires an internet connection; failures appear in Appearance
+and can be retried. Before the first desktop release, the update endpoint is
+unavailable. For source builds see [Desktop](desktop.md).

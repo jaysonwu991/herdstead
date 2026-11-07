@@ -10,11 +10,24 @@ const assert = require('node:assert/strict');
   const page = await browser.newPage({ viewport: { width: 1500, height: 960 } });
   const failures = [];
   const openedLinks = [];
+  let updateResult = null;
+  let updateError = null;
+  let installError = null;
+  let installs = 0;
   page.on('pageerror', error => failures.push(error.message));
   const run = runtime(event => { page.evaluate(event => window.__desktopEvent?.(event), event).catch(() => {}); }, { shell: '/bin/zsh', integration: true });
   try {
     await run.wait(() => true);
     await page.exposeFunction('__invoke', (name, args) => {
+      if (name === 'check_update') {
+        if (updateError) throw new Error(updateError);
+        return updateResult;
+      }
+      if (name === 'install_update') {
+        installs++;
+        if (installError) throw new Error(installError);
+        return null;
+      }
       if (name === 'bridge_state') return run.events();
       if (name === 'bridge_request') return run.request(args.message);
       if (name === 'open_external') { openedLinks.push(args.target); return null; }
@@ -30,6 +43,15 @@ const assert = require('node:assert/strict');
     });
     await page.goto(`file://${path.resolve(__dirname, '../src/index.html')}`);
     await page.locator('#connection-status').filter({ hasText: 'Connected' }).waitFor();
+    assert.equal(await page.evaluate(() => [...document.fonts].some(face => face.family === 'Herdstead Mono' && face.status === 'loaded')), true, 'Bundled font loads before the PTY is sized');
+    const fontProof = await page.evaluate(() => {
+      const canvas = document.createElement('canvas'); canvas.width = 48; canvas.height = 48;
+      const context = canvas.getContext('2d'); context.font = '24px "Herdstead Mono"';
+      const pixels = character => { context.clearRect(0, 0, 48, 48); context.fillText(character, 0, 32); return Array.from(context.getImageData(0, 0, 48, 48).data).join(','); };
+      const missing = pixels('\u0378');
+      return ['\ue0b0', '\ue0b6', '\uf179', '\uf418', '\ue7a8', '\uf017', '\udb80\udc35'].every(character => pixels(character) !== missing);
+    });
+    assert.equal(fontProof, true, 'Powerline and Nerd Font symbols render as glyphs rather than missing-character boxes');
     await page.locator('.pane').waitFor();
     await page.locator('.terminal-row').filter({ hasText: 'HS>' }).first().waitFor();
     assert.equal(await page.locator('#composer').count(), 0);
@@ -89,6 +111,27 @@ const assert = require('node:assert/strict');
     await page.locator('.viewer-screen').filter({ hasText: 'Desktop workspace' }).waitFor();
     await page.locator('#settings-button').click(); await page.locator('#theme-select').selectOption('nord');
     await page.waitForFunction(() => localStorage.getItem('theme') === 'nord');
+    await page.locator('#check-update').click();
+    await page.locator('#update-status').filter({ hasText: 'You are up to date.' }).waitFor();
+    assert.equal(await page.locator('#install-update').isVisible(), false);
+    updateResult = { version: '1.2.3' };
+    await page.locator('#check-update').click();
+    await page.locator('#update-status').filter({ hasText: 'Version 1.2.3 is available.' }).waitFor();
+    assert.equal(installs, 0, 'Checking must not install an update');
+    installError = 'Invalid signature';
+    await page.locator('#install-update').click();
+    await page.locator('#update-status').filter({ hasText: 'Update failed: Invalid signature' }).waitFor();
+    assert.equal(await page.locator('#check-update').isEnabled(), true);
+    updateError = 'Network unavailable';
+    await page.locator('#check-update').click();
+    await page.locator('#update-status').filter({ hasText: 'Cannot check for updates: Network unavailable' }).waitFor();
+    assert.equal(await page.locator('#install-update').isVisible(), false);
+    updateError = null; installError = null;
+    await page.locator('#check-update').click();
+    await page.locator('#install-update').waitFor();
+    await page.locator('#install-update').click();
+    await page.waitForFunction(() => document.querySelector('#install-update').disabled);
+    assert.equal(installs, 2);
     await page.locator('#font-family').fill('Menlo'); await page.locator('#font-family').press('Tab');
     await page.locator('#font-larger').click(); await page.locator('#close-settings').click();
     await page.locator('#palette-button').click(); await page.locator('#command-input').fill('Split terminal down');

@@ -15,7 +15,7 @@ They are merged in that order — later files win, table by table, so a project 
 set one key without repeating the rest. Missing files are fine. Unknown keys are
 ignored; `herdstead config` shows what was understood.
 
-A project config is read whenever herdstead starts in that folder. There is no
+A project config is read whenever the desktop bridge or daemon starts in that folder. There is no
 trust prompt: a repository you run `herdstead` in can change its own theme,
 keybindings and shell.
 
@@ -68,17 +68,19 @@ keybind-prefix = "ctrl+b"
 Out-of-range numbers are clamped rather than rejected, and an empty `theme`
 falls back to `midnight`.
 
-`composer-markdown-preview` only decides the initial state: `ctrl+p` toggles the
-preview in the current client either way.
+The old TUI settings `mouse`, `sidebar`, `sidebar-width`,
+`composer-markdown-preview`, `status-bar`, `keybind-prefix`, `keybinds` and
+`link-modifier` remain accepted for configuration compatibility. They do not
+control the desktop. Use Appearance, the Files button and the shortcuts in
+[keys](keys.md). Desktop links open with Cmd/Ctrl-click.
 
 ## Applying changes
 
-In the TUI, `prefix+r` reloads the client config and theme from the focused
-pane's folder. Shell, scrollback and restore settings are read by the daemon
-when it starts; restart the session to apply those changes. Existing processes
-are stopped by a restart. Mouse capture is set when the TUI attaches, so changing
-`mouse` also requires a new attach. The desktop keeps its appearance preferences
-locally; see [Desktop](desktop.md).
+Reconnect or restart the desktop bridge to reload client configuration. Shell,
+scrollback and restore settings are read when the daemon starts; stop and restart
+the session to apply them. Stopping a session terminates its processes. Desktop
+appearance and font preferences are saved in the webview and take precedence
+over its initial configured theme.
 
 ## Environment
 
@@ -104,13 +106,11 @@ Panes also receive `TERM`, `COLORTERM`, `HERDSTEAD=1`, `HERDSTEAD_PANE` and
 
 herdstead reports configuration problems instead of failing: an invalid TOML
 file, an unknown keybinding action, an unparsable key spec, or an unknown theme
-slot. Warnings are printed to stderr before the interface starts (and the
-interface shows how many config warnings there were), and a daemon writes its
+slot. Warnings are printed to stderr before the interface starts, and a daemon writes its
 configuration warnings to its session log. A TOML syntax error skips that file;
 a type error in the merged configuration falls back to all defaults.
 
-`herdstead config` is the quickest way to see what a run actually resolved, and
-`herdstead keys` what the keymap became.
+`herdstead config` in a desktop terminal shows the resolved runtime settings.
 
 ## Examples
 
@@ -129,11 +129,6 @@ selection = "#dbe7ff"
 ```toml
 # <project>/.herdstead/config.toml
 theme = "nord"
-
-[keybinds]
-split-vertical = "prefix+|"
-close-pane = "prefix+shift+q"
 ```
 
-See [keys](keys.md) for the action names and the key syntax, and
-[themes](themes.md) for the slots.
+See [themes](themes.md) for colour slots and [Desktop](desktop.md) for appearance.

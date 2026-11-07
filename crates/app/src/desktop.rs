@@ -15,7 +15,7 @@ use herdstead_render::{link, markdown, term, Line};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::{client, tui::viewer};
+use crate::{client, viewer};
 
 #[derive(Deserialize)]
 struct Message {

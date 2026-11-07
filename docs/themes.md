@@ -18,23 +18,15 @@ Change the theme and the whole surface changes with it.
 Aliases: `dark` and `default` mean `midnight`, `light` means `daylight`,
 `solarized-light` means `solarized`.
 
-The startup theme is chosen in this order:
-
-1. `herdstead --theme nord`
-2. `HERDSTEAD_THEME=nord`
-3. `theme = "nord"` in the config
-
-After attaching, `ctrl+b t` changes the current client
-(live preview; `Enter` applies, `Esc` restores what you had), or use
-`/theme nord` in the composer. These choices are not saved to config.
-
-At startup, an unknown name is reported and `midnight` is used. An unknown
-`/theme` name leaves the current TUI theme in place and shows a status message.
+Choose a theme in **Appearance**. The desktop saves that choice in webview
+storage and reapplies it when reconnecting. The bridge initially loads the
+runtime helper's `--theme`, `HERDSTEAD_THEME` or configured `theme`, in that order.
+An unknown startup theme falls back to `midnight` with a warning.
 
 ## Theme files
 
 Drop a JSON file in `~/.config/herdstead/themes/` and it appears in
-`herdstead themes` and the theme menu:
+`herdstead themes` and the Appearance selector:
 
 ```json
 {
@@ -100,7 +92,7 @@ default.
 | `accent_alt` | transient status messages and hover |
 | `border` | pane borders, dividers, rules, sidebar divider |
 | `border_focus` | the focused pane, completion and overlay borders |
-| `selection` | the selected row in the completion popup and the theme menu |
+| `selection` | the selected row in the completion popup and the Appearance selector |
 | `tab_active_bg`, `tab_active_fg` | the active tab |
 | `tab_fg` | inactive tabs |
 | `chip_bg`, `chip_fg` | the workspace chip at the left of the tab strip |
@@ -146,5 +138,5 @@ colour to grey by luminance, so structure survives without hue.
 
 ## Reloading
 
-`prefix+r` re-reads the config and the selected theme (including `theme-colors`)
-and re-renders viewers. Choosing a theme in the menu re-renders immediately.
+Selecting a theme in Appearance re-renders immediately. Restart the desktop
+bridge to reload configuration changes; existing daemons retain their settings.

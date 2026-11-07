@@ -1,12 +1,11 @@
-//! herdstead: a terminal workspace manager for coding agents, with a
-//! composer-grade renderer for Markdown, links, code and folder trees.
+//! Bundled desktop runtime and rich shell helpers.
 
 mod cli;
 mod client;
 mod desktop;
 mod server;
 mod shell;
-mod tui;
+mod viewer;
 
 use std::path::PathBuf;
 
@@ -20,9 +19,9 @@ use herdstead_core::theme::Theme;
 #[command(
     name = "herdstead",
     version,
-    about = "Terminal workspace manager for coding agents — a homestead for your herd",
+    about = "Herdstead desktop runtime and shell helpers",
     long_about = "herdstead keeps coding agents running in panes you can split, tab and detach from. \
-Its terminal and viewers render links, themes, Markdown, @path references, highlighted files and folder trees."
+The desktop app bundles this runtime for sessions, JSON transport and rich shell commands."
 )]
 struct Args {
     /// Session to use (defaults to the current folder's name).
@@ -33,7 +32,7 @@ struct Args {
     #[arg(long, global = true, env = "HERDSTEAD_THEME")]
     theme: Option<String>,
 
-    /// Run the session daemon in the foreground (used internally by `attach`).
+    /// Run the session daemon in the foreground (used internally by the desktop bridge).
     #[arg(long, hide = true)]
     server: bool,
 
@@ -56,8 +55,6 @@ enum Command {
     /// JSON bridge used by the desktop application (no terminal required).
     #[command(hide = true)]
     DesktopBridge,
-    /// Attach to a session, starting its daemon when needed.
-    Attach,
     /// List live sessions.
     Ls,
     /// Stop a session's daemon. The layout stays on disk unless --forget is given.
@@ -99,8 +96,6 @@ enum Command {
     Preview { path: PathBuf },
     /// List the available themes.
     Themes,
-    /// Print the keybindings.
-    Keys,
     /// List languages the highlighter knows.
     Languages,
     /// Print the resolved configuration.
@@ -143,18 +138,9 @@ fn main() -> Result<()> {
         }
         Some(Command::Render { path }) => cli::markdown(&path, &theme, path.as_os_str() == "-"),
         Some(Command::DesktopBridge) => desktop::run(session, cwd, paths, config, theme),
-        None | Some(Command::Attach) => {
-            use std::io::IsTerminal as _;
-            if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-                anyhow::bail!(
-                    "herdstead needs an interactive terminal to attach.\n\
-                     Run it from a real terminal, or use the non-interactive commands:\n  \
-                     herdstead cat <file>   herdstead tree [dir]   herdstead md <file>\n  \
-                     herdstead ls           herdstead init"
-                );
-            }
-            tui::run(session, cwd, paths, config, theme, warnings)
-        }
+        None => anyhow::bail!(
+            "Open the Herdstead desktop app to use a workspace. This bundled helper has no TUI."
+        ),
         Some(Command::Ls) => cli::list_sessions(&paths),
         Some(Command::Kill {
             session: name,
@@ -177,10 +163,6 @@ fn main() -> Result<()> {
         Some(Command::Preview { path }) => cli::preview(&path, &theme, &config),
         Some(Command::Themes) => {
             cli::themes(&paths, &theme);
-            Ok(())
-        }
-        Some(Command::Keys) => {
-            cli::keys(&config);
             Ok(())
         }
         Some(Command::Languages) => {

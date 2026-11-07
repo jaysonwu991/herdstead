@@ -1,4 +1,4 @@
-name-template: 'herdstead v$RESOLVED_VERSION'
+name-template: 'Herdstead Desktop v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 
 # One component, one drafter: every `v*` tag is a herdstead release.
@@ -153,30 +153,20 @@ template: |
 
   $CHANGES
 
-  ## Install
+  ## Download and install
 
-  ```sh
-  curl -fsSL https://raw.githubusercontent.com/$OWNER/$REPOSITORY/main/install.sh | sh
-  ```
+  Choose the installer below for your computer:
 
-  The script picks the archive for your machine and checks it against the
-  `.sha256` beside it when available (macOS arm64 and x64, Linux x64 and arm64), installing
-  into `~/.local/bin`. Prebuilt binaries are attached below if you would rather
-  fetch one yourself:
+  - macOS Apple Silicon: `Herdstead-macos-arm64.dmg`
+  - macOS Intel: `Herdstead-macos-x64.dmg`
+  - Linux x64: `Herdstead-linux-x64.AppImage` or `Herdstead-linux-x64.deb`
+  - Linux arm64: `Herdstead-linux-arm64.AppImage` or `Herdstead-linux-arm64.deb`
 
-  ```sh
-  asset=herdstead-macos-arm64.tar.gz      # or macos-x64, linux-x64, linux-arm64
-  base=https://github.com/$OWNER/$REPOSITORY/releases/download/$RESOLVED_TAG
-  curl -fsSLO "$base/$asset" && curl -fsSLO "$base/$asset.sha256"
-  shasum -a 256 -c "$asset.sha256"        # sha256sum -c on Linux
-  tar -xzf "$asset" && sudo mv herdstead /usr/local/bin/
-  ```
+  On macOS, drag Herdstead into Applications. On Linux, make the AppImage
+  executable and run it, or install the Debian package with your package manager.
+  AppImage installs support **Appearance → Check for updates**. Debian installs
+  update by installing the newer `.deb`. macOS installs also support in-app updates.
+  Update signatures, `latest.json` and `SHA256SUMS` are attached alongside the installers.
+  Windows is not supported by the Unix session runtime.
 
-  Or build from source (macOS or Linux, Rust 1.82+):
-
-  ```sh
-  cargo install --git https://github.com/$OWNER/$REPOSITORY.git herdstead
-  ```
-
-  **Full documentation:** [README](https://github.com/$OWNER/$REPOSITORY#readme) ·
-  [docs](https://github.com/$OWNER/$REPOSITORY/tree/main/docs)
+  **Documentation:** [getting started](https://github.com/$OWNER/$REPOSITORY/blob/main/docs/getting-started.md)

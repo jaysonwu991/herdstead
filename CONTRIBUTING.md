@@ -1,145 +1,85 @@
-# Contributing to herdstead
+# Contributing to Herdstead
 
-Thanks for wanting to improve herdstead. This page covers the local workflow,
-the layout of the code, and the conventions that keep the daemon and the client
-in agreement. For the user-facing picture, start at [README.md](README.md) and
-[docs/](docs/README.md).
+Use a current stable Rust toolchain with rustfmt/clippy, Node.js 22, git, and
+[Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) on macOS or Linux.
+Linux rich shell tests require zsh. Windows is not supported by the Unix runtime.
 
-## Prerequisites
+## Development
 
-- A stable Rust toolchain (edition 2021, Rust 1.82 or newer) with `rustfmt` and
-  `clippy`.
-- `git`.
-- macOS or Linux. Windows is not supported: the daemon and client talk over a
-  Unix socket, and the integration tests spawn PTYs.
-
-The terminal binary needs no desktop toolkit libraries. PTY handling uses the
-operating system's terminal facilities; prebuilt Linux binaries require glibc.
-
-The optional Tauri desktop app has separate prerequisites and checks in
-[Desktop](docs/desktop.md).
-
-## Getting started
-
-```bash
-git clone https://github.com/jaysonwu991/herdstead.git
-cd herdstead
+```sh
 cargo build
+cd desktop
+npm ci
+npm run dev
+```
+
+The desktop bundles the runtime automatically. The root `cargo build` builds
+that helper; it does not start a user interface. Follow [Desktop](docs/desktop.md)
+for local native builds and environment overrides.
+
+## Verification
+
+```sh
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+python3 -m unittest discover -s scripts -p 'test_*.py'
+cargo build
+cd desktop
+npm ci
+npm run prepare:runtime
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+npm test
+npm run test:e2e
 ```
 
-Run it from a project folder, in a real terminal:
+Runtime tests and desktop bridge tests start real daemons with isolated config,
+state and runtime directories. Browser E2E uses Chrome and replaces only native
+Tauri IPC. Check native window behaviour separately. To inspect an interrupted
+test session, use all three fixture directory overrides described in [AGENTS.md](AGENTS.md).
 
-```bash
-cargo run --release            # attaches to (or starts) a session
-cargo run -- cat README.md     # the CLI, no TUI needed
-```
+## Layout and conventions
 
-## Commands
+`crates/core` owns the model, config, themes, layout and protocol. `crates/render`
+provides pure styled-row renderers plus explicit file/tree IO helpers.
+`crates/app/src/server` owns daemon facts; `desktop.rs` provides JSON transport;
+`viewer.rs` reads viewer files; `cli.rs` provides bundled shell commands.
+`desktop/src-tauri` is the native host and `desktop/src` the webview UI.
 
-| command | purpose |
-|---|---|
-| `cargo build --release` | the binary at `target/release/herdstead` |
-| `cargo test --workspace` | the whole suite, including the daemon and PTY tests |
-| `cargo test -p herdstead-core` | model, layout, protocol and config tests |
-| `cargo test -p herdstead-render` | renderer tests |
-| `cargo clippy --workspace --all-targets -- -D warnings` | lint; warnings are errors |
-| `cargo fmt --all` | format |
-| `cargo fmt --all --check` | check formatting without editing |
-| `cargo run -- ls` | inspect live sessions while developing |
-| `cargo run -- kill <name>` | stop a development session in the current runtime directory |
-| `scripts/set-version.sh v1.2.3` | stamp the workspace version from a tag, as release CI does |
-| `scripts/test-install.sh` | run `install.sh` against fixtures, with no network |
+Keep presentation out of the daemon and terminal dependencies out of core/render.
+Viewer and shell output must use the same renderer. Protocol changes require
+neutral names and [architecture](docs/architecture.md) documentation. Use theme
+slots rather than literal UI colours, British English, short comments explaining
+why, and Conventional Commits PR titles. Do not commit build output or real user
+configuration/state. Preserve the docs' no-raw-HTML convention.
 
-The integration tests start their own daemons in a temporary state folder and
-clean up after themselves, so they do not touch your real session. An interrupted
-run may leave a daemon behind; use its fixture's config, state and runtime
-directory overrides when listing or stopping it (see [AGENTS.md](AGENTS.md)).
+## Desktop releases
 
-## Layout
+Release Drafter prepares notes for merged PRs. Publish a draft, push a `v*` tag,
+or manually dispatch **Desktop release** with an existing version tag. The tag
+must point to code containing the desktop workflow. GitHub's default workflow
+token does not trigger other workflows when it creates a tag/release; use manual
+dispatch when publishing through such automation.
 
-| path | contents |
-|---|---|
-| `crates/core` | geometry, layout tree, session model, protocol, themes, config, agent detection, `@path`, text scanning |
-| `crates/render` | Markdown, syntax highlighting, trees, link decoration, the composer, ANSI output |
-| `crates/app/src/server` | the daemon: PTY panes, grid extraction, key encoding, snapshots |
-| `crates/app/src/tui` | the client: state, chrome layout, drawing, viewers |
-| `desktop/` | Tauri native host, static desktop UI, packaging and desktop integration tests |
-| `crates/app/src/desktop.rs` | desktop transport over the existing daemon client |
-| `crates/app/src/cli.rs` | the non-interactive commands |
-| `crates/app/tests` | the daemon and PTY end-to-end tests |
-| `docs/` | user documentation |
-| `assets/` | the mark and lockups |
-| `install.sh`, `scripts/` | the curl-to-sh installer and the helpers CI and releases call |
+`scripts/set-version.sh v1.2.3` stamps the root runtime, native Cargo package,
+Tauri config and npm manifests. CI refreshes both Cargo locks after stamping.
+Native builds produce macOS arm64/x64 DMGs and updater app archives, and Linux
+arm64/x64 AppImages and Debian packages. Linux ARM uses a native ARM runner.
+The bundled runtime is built for the app's exact target.
 
-`core` and `render` do not depend on a terminal library. Keep it that way: a
-renderer takes text and a theme and returns styled rows, so the TUI and the CLI
-draw the same thing.
+Release CI requires `TAURI_SIGNING_PRIVATE_KEY` in repository Actions secrets,
+and optionally `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Its public key is committed
+in `desktop/src-tauri/tauri.conf.json`. Keep the private key safe: replacing it
+breaks updates for existing installations. These signatures verify updater
+artifacts; Apple code signing/notarisation requires separate credentials and is
+not currently configured.
 
-## The boundary rule
+Packaging checks every platform's installer and signature before assembling
+`latest.json` and `SHA256SUMS` and publishing assets. Stable platform names make
+latest-download links reusable. Prereleases do not replace the latest stable
+update. Reruns overwrite matching release assets. A failed build publishes no
+new assets; an already published draft may remain visible without downloads
+until the build succeeds.
 
-The daemon owns **runtime facts**: panes, processes, layout, focus, scrollback
-offsets, folders, agent status. The client owns **presentation**: theme, composer
-state, overlays, viewer scroll and the pointer.
-
-Do not put a UI concept into the protocol, and do not keep a runtime fact only in
-the client. If a change needs both, extend `Action` (client → daemon) or the
-`Snapshot` (daemon → client) deliberately, with neutral names, and document it.
-
-## Tests
-
-Three layers, and new behaviour belongs in the right one:
-
-1. **Unit tests** next to the code in `core` and `render` — geometry, parsing,
-   wrapping, themes, config, renderers. Most changes need one.
-2. **`crates/app/tests/runtime.rs`** — a real daemon: start it, connect, send actions, assert
-   snapshots. Use it for protocol, PTY, scrollback, restore and viewer changes.
-3. **`crates/app/tests/client.rs`** — the real TUI in a PTY: keys, drawing, the composer,
-   viewers, detach and resize. Use it when the change is visible.
-
-A change to key handling is not verified by a unit test alone: the end-to-end
-tests are what catch a key that never reaches the pane.
-
-## Conventions
-
-- **British English** in user-facing text and docs (`colour`, `recognise`,
-  `behaviour`), matching the existing pages.
-- **No HTML in Markdown.** herdstead renders its own documentation; raw HTML
-  would show up as text. Use tables, lists and fenced blocks.
-- **Comments explain why**, not what. Keep them short.
-- **Keep the docs true.** A new setting, action, slash command, theme slot or
-  viewer kind is not finished until the matching page in `docs/` says so, and the
-  README's feature table still reads correctly.
-- **Pull request titles** follow [Conventional Commits](https://www.conventionalcommits.org/)
-  (`feat: …`, `fix(composer): …`, `docs: …`). The release drafter turns them into
-  release notes and applies labels from the title.
-- **One idea per commit.** Run `cargo fmt`, clippy and the tests before pushing.
-- **No new dependency without a reason.** The renderer and the core are
-  deliberately small; a dependency needs to earn its place and its build time.
-
-## Adding a thing
-
-| change | touch |
-|---|---|
-| an action | `config::ACTIONS`, `protocol::Action`, the server's `apply`, the client's `run_action`/`on_key`, `docs/keys.md` |
-| a setting | `Config` + `Default`, `paths::DEFAULT_CONFIG`, `docs/configuration.md`, the README sample |
-| a theme slot | the `Theme` field, the `slots!` list, `from_recipe`, `docs/themes.md` |
-| a slash command | `tui::app::run_command`, `docs/composer.md` |
-| a viewer kind | `core::model::ViewerKind`, `tui::viewer`, `docs/viewers.md` |
-| a protocol frame | `core::protocol`, the server's `handle_request`/`apply`, the client's reader/writer, `docs/architecture.md` |
-
-## Releases
-
-Releases are tags. Labels are synced from `.github/workflows/labels.yml`; the
-release drafter keeps a draft for the next version, built from merged pull
-requests and their labels. To cut a release, publish the draft: that creates the
-`v*` tag, and `release.yml` answers the tag — it re-checks the tree, stamps the
-workspace version from the tag (`scripts/set-version.sh`), builds `herdstead` on
-macOS (arm64, x64) and Linux (x64, arm64), and attaches
-`herdstead-<platform>.tar.gz` plus a `.sha256` to the release — the archives that
-`install.sh` downloads. There is no changelog file to update by hand.
-
-## License
-
-herdstead is Apache-2.0. By contributing you agree that your work is licensed
-under the same terms.
+Apache-2.0 — contributions are under the repository's licence.

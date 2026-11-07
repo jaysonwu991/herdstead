@@ -15,7 +15,6 @@ herdstead-render.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 crossterm.workspace = true
-ratatui.workspace = true
 portable-pty.workspace = true
 vt100.workspace = true
 serde.workspace = true

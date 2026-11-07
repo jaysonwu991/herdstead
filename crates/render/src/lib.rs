@@ -2,8 +2,8 @@
 //! trees, link decoration, the composer and ANSI output.
 //!
 //! Drawing functions take text plus a [`Theme`] and return styled [`Line`]s.
-//! File-loading helpers and tree scanning perform IO. The TUI maps rows into
-//! ratatui, the desktop into styled spans and the CLI into ANSI output.
+//! File-loading helpers and tree scanning perform IO. The desktop maps rows
+//! into styled spans and the bundled shell helpers into ANSI output.
 
 pub mod ansi;
 pub mod code;

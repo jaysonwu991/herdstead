@@ -9,6 +9,7 @@ use std::time::Duration;
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_updater::{Update, UpdaterExt};
 
 use serde_json::{json, Value};
 
@@ -252,16 +253,59 @@ fn open_external(app: tauri::AppHandle, target: String) -> Result<(), String> {
         .map_err(|err| err.to_string())
 }
 
+#[derive(Default)]
+struct PendingUpdate(Mutex<Option<Update>>);
+
+#[tauri::command]
+async fn check_update(app: tauri::AppHandle, state: State<'_, PendingUpdate>) -> Reply {
+    let update = app
+        .updater_builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|err| err.to_string())?
+        .check()
+        .await
+        .map_err(|err| err.to_string())?;
+    let metadata = update
+        .as_ref()
+        .map(|update| json!({"version": update.version}));
+    *state.0.lock().unwrap() = update;
+    Ok(json!(metadata))
+}
+
+#[tauri::command]
+async fn install_update(
+    app: tauri::AppHandle,
+    state: State<'_, PendingUpdate>,
+) -> Result<(), String> {
+    let update = state
+        .0
+        .lock()
+        .unwrap()
+        .take()
+        .ok_or("Check for updates first")?;
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|err| err.to_string())?;
+    app.state::<Host>().stop();
+    app.restart();
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(PendingUpdate::default())
         .invoke_handler(tauri::generate_handler![
             bridge_request,
             bridge_state,
             bridge_reconnect,
             choose_folder,
-            open_external
+            open_external,
+            check_update,
+            install_update
         ])
         .setup(|app| {
             let binary = std::env::var_os("HERDSTEAD_BIN")

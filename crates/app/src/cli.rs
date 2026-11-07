@@ -4,7 +4,6 @@ use std::io::Read;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use herdstead_core::config::{format_binding, ACTIONS};
 use herdstead_core::paths::Paths;
 use herdstead_core::theme::Theme;
 use herdstead_core::Config;
@@ -122,36 +121,6 @@ pub fn themes(paths: &Paths, active: &Theme) {
     }
     println!();
     println!("themes live in {}", paths.themes_dir().display());
-}
-
-pub fn keys(config: &Config) {
-    let keymap = config.keymap();
-    println!("prefix: {}", format_binding(&config.prefix_binding()));
-    println!();
-    for action in ACTIONS {
-        let binding = keymap
-            .get(action.name)
-            .map(format_binding)
-            .unwrap_or_else(|| "(unbound)".to_string());
-        println!("{:<24} {:<20} {}", action.name, binding, action.help);
-    }
-    println!();
-    println!(
-        "{:<24} {:<20} go to a tab",
-        "select-tab-1..9", "prefix+1..9"
-    );
-    println!(
-        "{:<24} {:<20} go to a workspace",
-        "select-workspace-1..9", "prefix+shift+1..9"
-    );
-    println!(
-        "{:<24} {:<20} scroll the pane",
-        "page-up/down", "prefix+pgup/pgdn"
-    );
-    println!(
-        "{:<24} {:<20} open a link or path under the pointer",
-        "open-link", "super/cmd+click"
-    );
 }
 
 pub fn languages() {
