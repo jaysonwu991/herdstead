@@ -279,6 +279,9 @@ returns a bounded shallow listing; `viewer` invokes the existing client viewer;
 `preview` renders Markdown; `theme` changes the bridge's client-local
 palette; `rich_output` switches client-side output interpretation. Replies echo the id and carry either `value` or `error`. Theme changes
 refresh snapshots without changing the daemon's settings.
+On stdin EOF or an input error, the bridge shuts down its socket and joins the
+event reader before exiting, so a snapshot already being written reaches stdout
+as a complete JSON frame. The independent session daemon remains running.
 
 The Tauri host exposes only these operations, reconnect, cached initial state,
 a native folder picker and allowlisted HTTP/HTTPS/mailto opening. Pending requests

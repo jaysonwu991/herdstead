@@ -140,7 +140,7 @@ pub fn run(
     let rich = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let rich_reader = Arc::clone(&rich);
     let links = config.links;
-    std::thread::spawn(move || loop {
+    let reader = std::thread::spawn(move || loop {
         let result = match connection.next_event() {
             Ok(Event::Snapshot { snapshot }) => {
                 let theme = render_theme.lock().unwrap();
@@ -186,81 +186,94 @@ pub fn run(
         }
     });
 
-    let stdin = io::stdin();
-    let mut input = stdin.lock();
-    loop {
-        let mut bytes = Vec::new();
-        // Limit before allocating the whole frame, including malformed input.
-        let read = io::Read::take(&mut input, (MAX_FRAME_BYTES + 1) as u64)
-            .read_until(b'\n', &mut bytes)?;
-        if read == 0 {
-            break;
-        }
-        if read > MAX_FRAME_BYTES {
-            bail!("desktop message exceeds the frame limit");
-        }
-        let message: Message = match serde_json::from_slice(&bytes) {
-            Ok(message) => message,
-            Err(err) => {
-                let error = format!("invalid desktop message: {err}");
-                let id = serde_json::from_slice::<Value>(&bytes)
-                    .ok()
-                    .and_then(|value| value["id"].as_u64());
-                if let Some(id) = id {
-                    emit(&json!({"type": "reply", "id": id, "error": error}))?;
-                } else {
-                    emit(&json!({"type": "error", "message": error}))?;
-                }
-                continue;
+    let result = (|| -> Result<()> {
+        let stdin = io::stdin();
+        let mut input = stdin.lock();
+        loop {
+            let mut bytes = Vec::new();
+            // Limit before allocating the whole frame, including malformed input.
+            let read = io::Read::take(&mut input, (MAX_FRAME_BYTES + 1) as u64)
+                .read_until(b'\n', &mut bytes)?;
+            if read == 0 {
+                break;
             }
-        };
-        let result: Result<Value> = (|| match message.command {
-            Command::Action { action } => {
-                writer.write_all(&encode_line(&Request::Action { action })?)?;
-                Ok(Value::Null)
+            if read > MAX_FRAME_BYTES {
+                bail!("desktop message exceeds the frame limit");
             }
-            Command::RichOutput { enabled } => {
-                rich.store(enabled, std::sync::atomic::Ordering::Relaxed);
-                writer.write_all(&encode_line(&Request::Refresh)?)?;
-                Ok(Value::Null)
-            }
-            Command::Directory { path } => directory(&path, &config),
-            Command::Viewer { pane, width } => {
-                if let Some(spec) = &pane.viewer {
-                    if spec.path.is_file() && std::fs::metadata(&spec.path)?.len() > 4 * 1024 * 1024
-                    {
-                        bail!("viewer limit is 4 MiB; use a terminal command for this file");
+            let message: Message = match serde_json::from_slice(&bytes) {
+                Ok(message) => message,
+                Err(err) => {
+                    let error = format!("invalid desktop message: {err}");
+                    let id = serde_json::from_slice::<Value>(&bytes)
+                        .ok()
+                        .and_then(|value| value["id"].as_u64());
+                    if let Some(id) = id {
+                        emit(&json!({"type": "reply", "id": id, "error": error}))?;
+                    } else {
+                        emit(&json!({"type": "error", "message": error}))?;
                     }
+                    continue;
                 }
-                let lines =
-                    viewer::render(&pane, width.clamp(4, 1000), &theme.lock().unwrap(), &config)
-                        .map_err(anyhow::Error::msg)?;
-                Ok(rows(lines))
-            }
-            Command::Preview { text, width } => Ok(rows(markdown::render_width(
-                &text,
-                usize::from(width.clamp(4, 1000)),
-                &theme.lock().unwrap(),
-            ))),
-            Command::Theme { name } => {
-                let mut selected = Theme::load(&name, &paths.themes_dir());
-                selected
-                    .apply_overrides(&config.theme_colors)
+            };
+            let result: Result<Value> = (|| match message.command {
+                Command::Action { action } => {
+                    writer.write_all(&encode_line(&Request::Action { action })?)?;
+                    Ok(Value::Null)
+                }
+                Command::RichOutput { enabled } => {
+                    rich.store(enabled, std::sync::atomic::Ordering::Relaxed);
+                    writer.write_all(&encode_line(&Request::Refresh)?)?;
+                    Ok(Value::Null)
+                }
+                Command::Directory { path } => directory(&path, &config),
+                Command::Viewer { pane, width } => {
+                    if let Some(spec) = &pane.viewer {
+                        if spec.path.is_file()
+                            && std::fs::metadata(&spec.path)?.len() > 4 * 1024 * 1024
+                        {
+                            bail!("viewer limit is 4 MiB; use a terminal command for this file");
+                        }
+                    }
+                    let lines = viewer::render(
+                        &pane,
+                        width.clamp(4, 1000),
+                        &theme.lock().unwrap(),
+                        &config,
+                    )
                     .map_err(anyhow::Error::msg)?;
-                let response = json!({"name": selected.name, "palette": palette(&selected)});
-                *theme.lock().unwrap() = selected;
-                writer.write_all(&encode_line(&Request::Refresh)?)?;
-                Ok(response)
-            }
-        })();
-        let reply = match result {
-            Ok(value) => json!({"type": "reply", "id": message.id, "value": value}),
-            Err(err) => json!({"type": "reply", "id": message.id, "error": err.to_string()}),
-        };
-        emit(&reply)?;
-    }
-    // EOF detaches just this client; shells remain owned by the daemon.
-    Ok(())
+                    Ok(rows(lines))
+                }
+                Command::Preview { text, width } => Ok(rows(markdown::render_width(
+                    &text,
+                    usize::from(width.clamp(4, 1000)),
+                    &theme.lock().unwrap(),
+                ))),
+                Command::Theme { name } => {
+                    let mut selected = Theme::load(&name, &paths.themes_dir());
+                    selected
+                        .apply_overrides(&config.theme_colors)
+                        .map_err(anyhow::Error::msg)?;
+                    let response = json!({"name": selected.name, "palette": palette(&selected)});
+                    *theme.lock().unwrap() = selected;
+                    writer.write_all(&encode_line(&Request::Refresh)?)?;
+                    Ok(response)
+                }
+            })();
+            let reply = match result {
+                Ok(value) => json!({"type": "reply", "id": message.id, "value": value}),
+                Err(err) => json!({"type": "reply", "id": message.id, "error": err.to_string()}),
+            };
+            emit(&reply)?;
+        }
+        Ok(())
+    })();
+    // Wake the reader and finish its current JSON frame before exiting. EOF
+    // detaches just this client; shells remain owned by the daemon.
+    let _ = writer.shutdown(std::net::Shutdown::Both);
+    reader
+        .join()
+        .map_err(|_| anyhow::anyhow!("desktop event reader panicked"))?;
+    result
 }
 
 #[cfg(test)]

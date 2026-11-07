@@ -2,6 +2,29 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { runtime } = require('./runtime.cjs');
 const plain = event => Object.values(event.screens).flat().map(row => row.map(run => run.text).join('')).join('\n');
+test('detaching finishes an in-flight snapshot before closing stdout', { timeout: 30000 }, async () => {
+  const events = [];
+  const run = runtime(event => events.push(event.type));
+  try {
+    await run.wait(() => true, 'initial shell');
+    await run.request({ type: 'action', action: { type: 'resize', size: { rows: 200, cols: 400 }, area: { x: 0, y: 0, width: 400, height: 200 } } });
+    await run.wait(event => event.snapshot.panes[0].grid.rows > 100, 'large terminal snapshot');
+    await run.request({ type: 'action', action: { type: 'send_text', text: "i=0; while [ $i -lt 200 ]; do printf '%0350d\\n' 0; i=$((i+1)); done", submit: true } });
+    await run.wait(event => event.snapshot.panes[0].grid.lines.filter(line => line.runs.some(run => run.text.length >= 350)).length > 100, 'filled terminal snapshot');
+    const closed = new Promise(resolve => run.child.once('close', resolve));
+    // Backpressure keeps the event writer busy when stdin reaches EOF.
+    run.child.stdout.pause();
+    run.child.stdin.write(`${JSON.stringify({ id: 1000, type: 'rich_output', enabled: false })}\n`);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    run.child.stdin.end();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    run.child.stdout.resume();
+    await closed;
+    assert.equal(run.child.exitCode, 0);
+    assert.equal(events.at(-1), 'disconnected');
+  } finally { await run.close(); }
+});
+
 test('desktop bridge drives a real PTY, split, viewer and persistent session', { timeout: 30000 }, async () => {
   const run = runtime();
   try {
