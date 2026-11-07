@@ -67,12 +67,12 @@ class DesktopReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = Path(__file__).resolve().parent.parent
-            for name in ['scripts/set-version.py', 'Cargo.toml', 'desktop/src-tauri/Cargo.toml', 'desktop/package.json', 'desktop/package-lock.json', 'desktop/src-tauri/tauri.conf.json']:
+            for name in ['scripts/set-version.py', 'Cargo.toml', 'desktop/src-tauri/Cargo.toml', 'desktop/package.json', 'desktop/src-tauri/tauri.conf.json']:
                 destination = root / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 destination.write_bytes((source / name).read_bytes())
             subprocess.run(['python3', str(root / 'scripts/set-version.py'), 'v1.2.3'], check=True, capture_output=True)
-            for name in ['desktop/package.json', 'desktop/package-lock.json', 'desktop/src-tauri/tauri.conf.json']:
+            for name in ['desktop/package.json', 'desktop/src-tauri/tauri.conf.json']:
                 self.assertEqual(json.loads((root / name).read_text())['version'], '1.2.3')
             for name in ['Cargo.toml', 'desktop/src-tauri/Cargo.toml']:
                 self.assertIn('version = "1.2.3"', (root / name).read_text())

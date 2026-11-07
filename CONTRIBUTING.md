@@ -1,6 +1,6 @@
 # Contributing to Herdstead
 
-Use a current stable Rust toolchain with rustfmt/clippy, Node.js 22, git, and
+Use a current stable Rust toolchain with rustfmt/clippy, Node.js 26, pnpm 12, git, and
 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) on macOS or Linux.
 Linux rich shell tests require zsh. Windows is not supported by the Unix runtime.
 
@@ -9,8 +9,8 @@ Linux rich shell tests require zsh. Windows is not supported by the Unix runtime
 ```sh
 cargo build
 cd desktop
-npm ci
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
 The desktop bundles the runtime automatically. The root `cargo build` builds
@@ -26,12 +26,12 @@ cargo test --workspace
 python3 -m unittest discover -s scripts -p 'test_*.py'
 cargo build
 cd desktop
-npm ci
-npm run prepare:runtime
+pnpm install --frozen-lockfile
+pnpm run prepare:runtime
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-npm test
-npm run test:e2e
+pnpm test
+pnpm run test:e2e
 ```
 
 Runtime tests and desktop bridge tests start real daemons with isolated config,
@@ -63,7 +63,7 @@ token does not trigger other workflows when it creates a tag/release; use manual
 dispatch when publishing through such automation.
 
 `scripts/set-version.sh v1.2.3` stamps the root runtime, native Cargo package,
-Tauri config and npm manifests. CI refreshes both Cargo locks after stamping.
+Tauri config and desktop package manifest. CI refreshes both Cargo locks after stamping.
 Native builds produce macOS arm64/x64 DMGs and updater app archives, and Linux
 arm64/x64 AppImages and Debian packages. Linux ARM uses a native ARM runner.
 The bundled runtime is built for the app's exact target.

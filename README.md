@@ -31,7 +31,8 @@ Open **Appearance → Check for updates**, then **Install update and restart**.
 Updates are signed and verified before installation. Linux in-app updates use
 the AppImage; Debian installations update by installing a newer `.deb`.
 macOS packages are not currently Apple Developer ID signed or notarised; see
-[troubleshooting](docs/troubleshooting.md) for first launch.
+[first-launch troubleshooting](docs/troubleshooting.md#first-launch-on-macos)
+if macOS reports that Herdstead.app is damaged or blocks opening it.
 
 ## Use a workspace
 
@@ -54,17 +55,17 @@ interpretation without changing the terminal's bytes or row coordinates.
 
 ## Build from source
 
-Install a current stable Rust toolchain, Node.js 22 and the
+Install a current stable Rust toolchain, Node.js 26, pnpm 12 and the
 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
 Linux also needs zsh for the rich shell integration.
 
 ```sh
 git clone https://github.com/jaysonwu991/herdstead.git
 cd herdstead/desktop
-npm ci
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 # Local app, without signed updater artifacts:
-npm run build -- --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
+pnpm run build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
 Release CI builds native installers for all four supported platforms and signs

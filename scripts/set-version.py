@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the bundled runtime, native app and npm package on one release version."""
+"""Keep the bundled runtime, native app and desktop package on one release version."""
 import json
 from pathlib import Path
 import re
@@ -17,11 +17,9 @@ for name, section in [("Cargo.toml", "workspace.package"), ("desktop/src-tauri/C
     if count != 1:
         sys.exit(f"missing version in {name}")
     path.write_text(text)
-for name in ["desktop/package.json", "desktop/package-lock.json", "desktop/src-tauri/tauri.conf.json"]:
+for name in ["desktop/package.json", "desktop/src-tauri/tauri.conf.json"]:
     path = root / name
     data = json.loads(path.read_text())
     data["version"] = version
-    if "packages" in data:
-        data["packages"][""]["version"] = version
     path.write_text(json.dumps(data, indent=2) + "\n")
 print(f"set desktop and runtime version to {version}")

@@ -13,8 +13,10 @@ choose your platform:
 | Linux arm64 | `Herdstead-linux-arm64.AppImage` or `Herdstead-linux-arm64.deb` |
 
 On macOS, open the DMG and drag Herdstead to `/Applications`, then launch it.
-The current packages are not Apple Developer ID signed or notarised; first-launch
-help is in [troubleshooting](troubleshooting.md).
+The current packages are not Apple Developer ID signed or notarised. If macOS
+says “Herdstead.app is damaged and can’t be opened”, follow the download
+verification and app-specific quarantine steps in
+[first-launch troubleshooting](troubleshooting.md#first-launch-on-macos).
 
 On Linux, download the AppImage, make it executable and run it:
 

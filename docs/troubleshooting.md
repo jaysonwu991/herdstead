@@ -2,11 +2,49 @@
 
 ## First launch on macOS
 
-The current DMGs are not Apple Developer ID signed or notarised. macOS may block
-first launch. After checking the download source and checksum, use System
-Settings → Privacy & Security → Open Anyway when available. Managed Macs may
-require your administrator's approval. Do not disable Gatekeeper globally.
+The current DMGs are not Apple Developer ID signed or notarised. macOS may
+block first launch with “Herdstead.app is damaged and can’t be opened. You should
+move it to the Trash.” This can be a Gatekeeper quarantine block on a downloaded
+app, rather than a damaged download. The message alone does not confirm the cause.
+
+1. Choose **Cancel**. Download the installer and `SHA256SUMS` from the same
+   [official release](https://github.com/jaysonwu991/herdstead/releases/latest).
+   Check the DMG before overriding the block. For Apple Silicon:
+
+   ```sh
+   cd ~/Downloads
+   shasum -a 256 Herdstead-macos-arm64.dmg
+   ```
+
+   Compare the result with that filename's entry in `SHA256SUMS`; use
+   `Herdstead-macos-x64.dmg` on Intel. If the checksum differs, download again
+   and do not continue with that copy.
+2. Open the DMG and drag **Herdstead.app** into `/Applications`. Run the installed
+   copy, rather than the copy inside the mounted DMG.
+3. Try opening it, then use **System Settings → Privacy & Security → Open Anyway**
+   if that option appears.
+4. If the same damaged-app message remains and you trust the verified download,
+   open Terminal and remove the quarantine attribute from this app only:
+
+   ```sh
+   xattr -dr com.apple.quarantine "/Applications/Herdstead.app"
+   open "/Applications/Herdstead.app"
+   ```
+
+   This removes the downloaded-app quarantine check for Herdstead and its bundled
+   runtime; it does not sign or notarise the app. If installed in
+   `~/Applications`, substitute `"$HOME/Applications/Herdstead.app"` in both
+   commands. On a managed Mac, contact your administrator if permissions or
+   security policy prevent this step.
+
+If a fresh, checksum-verified copy still fails after these steps, report the
+release version, Mac architecture, macOS version and exact error in
+[an issue](https://github.com/jaysonwu991/herdstead/issues). Do not disable
+Gatekeeper globally or bypass a warning that the app will damage your computer.
 Updater signatures verify future updates; they do not replace Apple notarisation.
+
+See [Apple's app security guidance](https://support.apple.com/en-gb/102445) and
+[Tauri's macOS code signing guidance](https://v2.tauri.app/distribute/sign/macos/).
 
 ## Linux installation
 

@@ -6,16 +6,19 @@ shells and agents running; reopening the same session reattaches to them.
 
 ## Run from source
 
-Install a current stable Rust toolchain, Node.js 22 or newer, and the
+Install a current stable Rust toolchain, Node.js 26, pnpm 12 and the
 [Tauri system prerequisites](https://v2.tauri.app/start/prerequisites/).
+Install the pinned pnpm version with `npm install -g pnpm@12.18.0`.
+Local installs use your configured registry (including Skyscanner Artifactory);
+CI and release builds use the public npm registry.
 The bundled runtime builds separately; the user interface requires the webview.
 
 From the repository root:
 
 ```sh
 cd desktop
-npm ci
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
 This builds the runtime, copies it into the desktop bundle's resources, and
@@ -26,7 +29,7 @@ terminal workspace remains independently buildable.
 To open a particular project and session:
 
 ```sh
-HERDSTEAD_CWD=/path/to/project HERDSTEAD_SESSION=work npm run dev
+HERDSTEAD_CWD=/path/to/project HERDSTEAD_SESSION=work pnpm run dev
 ```
 
 The default folder is the launch directory (or the home folder when launched
@@ -42,14 +45,14 @@ The runtime is bundled; there is no separate CLI installer.
 Local unsigned builds can disable update artifacts:
 
 ```sh
-npm run build -- --config '{"bundle":{"createUpdaterArtifacts":false}}'
+pnpm run build --config '{"bundle":{"createUpdaterArtifacts":false}}'
 # macOS app only:
-npm run build -- --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
+pnpm run build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
 Bundles appear under `desktop/src-tauri/target/release/bundle/`. To generate
 signed update artifacts, set `TAURI_SIGNING_PRIVATE_KEY` to the release signing
-key and its optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, then run `npm run build`.
+key and its optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, then run `pnpm run build`.
 The public key in `tauri.conf.json` must match. These update signatures are
 separate from Apple Developer ID signing and notarisation.
 
@@ -199,7 +202,7 @@ From the repository root, first run the standard workspace checks:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cargo build                     # debug binary used by npm test
+cargo build                     # debug binary used by pnpm test
 ```
 
 Then:
@@ -207,14 +210,14 @@ Then:
 ```sh
 cargo fmt --manifest-path desktop/src-tauri/Cargo.toml --check
 cd desktop
-npm ci
-npm run prepare:runtime
+pnpm install --frozen-lockfile
+pnpm run prepare:runtime
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-npm test
-npm run test:e2e
+pnpm test
+pnpm run test:e2e
 ```
 
-`npm test` uses `target/debug/herdstead` (or `HERDSTEAD_BIN`) for real daemon
+`pnpm test` uses `target/debug/herdstead` (or `HERDSTEAD_BIN`) for real daemon
 integration tests, isolated from user configuration and state. Build it with
 `cargo build` first. The browser E2E test needs Chrome installed, drives the real
 page and real daemon, and substitutes only Tauri's invoke/event transport. It
