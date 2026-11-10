@@ -152,7 +152,10 @@ fi
 # Only interactive, single-file reads become rich output; pipes keep exact bytes.
 if (( ! $+aliases[cat] && ! $+functions[cat] )); then
   function cat() {
-    if [[ -t 1 && $# == 1 && -f $1 && $1 != -* ]]; then hcat "$1"
+    if [[ -t 1 && $# == 1 && -f $1 && $1 != -* ]]; then
+      # One blank row separates the command line from the rendered document.
+      printf '\n'
+      hcat "$1"
     else command cat "$@"
     fi
   }

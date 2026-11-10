@@ -9,6 +9,7 @@ const state = {
   panes: new Map(), fileRoot: '', fileEntries: [], directoryCache: new Map(),
   expanded: new Set(), paletteIndex: 0, commands: [], cell: { width: 8.4, height: 21 },
   dimensions: '', renderPending: false, directoryGeneration: 0, viewerCache: new Map(),
+  zoom: clampZoom(Number(localStorage.getItem('zoom')) || 1),
 };
 let actionQueue = Promise.resolve();
 const action = value => {
@@ -50,12 +51,12 @@ function uiIcon(kind) {
     settings: 'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
     chevronRight: 'M9 5l7 7-7 7',
     chevronDown: 'M5 9l7 7 7-7',
-    file: 'M5 3h9l5 5v13H5z M14 3v6h5',
+    file: 'M5 3h9l5 5v13H5z M14 3v6h5 M8 13h6 M8 16h6',
     files: 'M4 3h16v18H4z M8 7h8 M8 11h8 M8 15h8',
     refresh: 'M20 8a9 9 0 1 0 1 7 M20 3v6h-6',
     sparkle: 'M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z',
     computer: 'M3 4h18v13H3z M8 21h8 M12 17v4',
-    folder: 'M3 5h7l2 3h9v12H3z',
+    folder: 'M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2.4 3h8.1A1.5 1.5 0 0 1 21 10.5v7A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z M3 10h18',
   };
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true'); svg.classList.add('ui-icon');
@@ -100,6 +101,20 @@ async function setTheme(name) {
   localStorage.setItem('theme', result.name); $('#theme-select').value = result.name;
   state.viewerCache.clear(); scheduleRender();
 }
+function clampZoom(value) {
+  const zoom = Math.round(Number(value) * 10) / 10;
+  if (!Number.isFinite(zoom)) return 1;
+  return Math.min(1.6, Math.max(0.7, zoom));
+}
+function setZoom(value) {
+  state.zoom = clampZoom(value);
+  localStorage.setItem('zoom', String(state.zoom));
+  // The webview reports no zoom level, so the window keeps the value and the
+  // native side only applies it.
+  Promise.resolve(api.setZoom?.(state.zoom)).catch(error => showError(error.message));
+  requestAnimationFrame(() => { resize(); scheduleRender(); });
+}
+function zoomText(step) { setZoom(step === 0 ? 1 : state.zoom + step * 0.1); }
 function fontSize(delta = 0) {
   state.fontSize = Math.max(10, Math.min(24, state.fontSize + delta));
   localStorage.setItem('fontSize', state.fontSize);
@@ -207,19 +222,24 @@ function render() {
       header.append(el('span', '', pane.kind === 'viewer' ? '▤' : '❯_'), title, cwd, offset, controls);
       const screen = el('div', `screen ${pane.kind === 'viewer' ? 'viewer-screen' : ''}`);
       screen.setAttribute('role', 'log'); screen.setAttribute('aria-label', `Output for ${pane.title}`);
-      const lines = el('div', 'rows'), cursor = el('div', 'cursor');
-      screen.append(lines, cursor); node.append(header, screen);
-      node.addEventListener('mousedown', safely(async event => {
+      const lines = el('div', 'rows');
+      screen.append(lines); node.append(header, screen);
+      node.addEventListener('mousedown', event => {
         if (event.target.closest('button')) return;
-        if (state.snapshot.focused !== pane.id) await action({ type: 'focus_pane', pane: pane.id });
-      }));
+        // The textarea takes the keystrokes immediately; the daemon catches up
+        // with the focus change before it reads any of them.
+        terminalFocus();
+        safely(async () => {
+          if (state.snapshot.focused !== pane.id) await action({ type: 'focus_pane', pane: pane.id });
+        })();
+      });
       node.addEventListener('mouseup', () => { if (!window.getSelection()?.toString()) terminalFocus(); });
       node.addEventListener('wheel', safely(event => {
         if (pane.kind === 'viewer') return;
         event.preventDefault();
         if (event.deltaY) queueScroll(pane.id, event.deltaY < 0 ? 3 : -3);
       }), { passive: false });
-      $('#panes').append(node); view = { node, title, cwd, offset, screen, lines, cursor, zoom }; state.panes.set(pane.id, view);
+      $('#panes').append(node); view = { node, title, cwd, offset, screen, lines, zoom }; state.panes.set(pane.id, view);
     }
     const cell = state.cell, rect = pane.rect;
     const geometry = JSON.stringify([rect, snap.area, cell]);
@@ -242,9 +262,6 @@ function render() {
     const onLink = link => safely(() => openLink(link, pane.cwd))();
     if (pane.grid) {
       Terminal.updateRows(view.lines, state.screens[pane.id] || [], document, onLink);
-      const cursor = pane.grid.cursor;
-      view.cursor.hidden = !cursor || pane.grid.offset > 0;
-      if (cursor) Object.assign(view.cursor.style, { top: `${cursor.row * cell.height}px`, left: `${(cursor.col + 1) * cell.width}px` });
     } else safely(() => renderViewer(pane, view))();
   }
   renderDividers(); find();
@@ -268,7 +285,6 @@ async function renderViewer(pane, view) {
   let cached = state.viewerCache.get(pane.id);
   if (cached?.pending || (cached?.key === key && Date.now() - cached.time < 1000)) return;
   cached = { key, pending: true, time: Date.now() }; state.viewerCache.set(pane.id, cached);
-  view.cursor.hidden = true;
   try {
     const rows = await request({ type: 'viewer', pane, width });
     if (state.viewerCache.get(pane.id) !== cached) return;
@@ -417,6 +433,10 @@ const commands = [
   ['Find in visible terminal output', '⌘ F', openFind],
   ['Toggle file explorer', '⌘ B', toggleFiles],
   ['Toggle rich terminal output', '', toggleRich],
+  ['Zoom in', '⌘ +', () => zoomText(1)],
+  ['Zoom out', '⌘ −', () => zoomText(-1)],
+  ['Actual size', '⌘ 0', () => zoomText(0)],
+  ['Toggle full screen', '⌃⌘ F', () => api.toggleFullScreen?.()],
   ['Settings and appearance', '⌘ ,', settings],
   ['Open workspace folder tree', '', () => action({ type: 'open_viewer', path: workspace()?.dir || state.cwd, kind: 'tree' })],
   ['Scroll focused pane to top', '', () => focused() && action({ type: 'scroll_to_top', pane: focused().id })],
@@ -502,7 +522,7 @@ document.addEventListener('keydown', safely(async event => {
     b: toggleFiles, f: openFind, ',': settings,
     enter: event.shiftKey ? () => action({ type: 'toggle_zoom' }) : null,
     w: event.shiftKey ? () => action({ type: 'close_pane' }) : null,
-    '=': () => fontSize(1), '+': () => fontSize(1), '-': () => fontSize(-1),
+    '=': () => zoomText(1), '+': () => zoomText(1), '-': () => zoomText(-1), '0': () => zoomText(0),
   };
   if (/^[1-9]$/.test(key)) { event.preventDefault(); event.stopPropagation(); await action({ type: 'select_tab', index: Number(key) - 1 }); return; }
   if (shortcuts[key]) { event.preventDefault(); event.stopPropagation(); await shortcuts[key](); }
@@ -531,6 +551,9 @@ on('#command-input', 'keydown', async event => {
 api.onEvent(receive); api.onCommand(safely(command => {
   if (command === 'palette' && !$('#palette').open) palette();
   else if (command === 'settings') settings();
+  else if (command === 'zoom-in') zoomText(1);
+  else if (command === 'zoom-out') zoomText(-1);
+  else if (command === 'zoom-reset') zoomText(0);
   else if (command === 'check-for-updates') { settings(); if (!$('#check-update').disabled) return checkUpdate(); }
 }));
 $('#files').hidden = !state.files; $('#files-button').setAttribute('aria-pressed', state.files);
@@ -541,6 +564,7 @@ safely(async () => {
   try { await document.fonts.load(`${state.fontSize}px "Herdstead Mono"`); }
   catch { showError('The bundled terminal font could not load. Using a system font.'); }
   fontSize();
+  if (api.setZoom) Promise.resolve(api.setZoom(state.zoom)).catch(error => showError(error.message));
   for (const event of await api.state()) receive(event);
   terminalFocus();
 })();

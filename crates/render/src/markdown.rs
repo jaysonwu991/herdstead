@@ -157,6 +157,13 @@ fn render_blocks(
             continue;
         }
 
+        // Raw HTML stays visible as text, but its line breaks are part of the
+        // document: README banners and `<pre>` art are laid out by column.
+        if is_html_block_start(trimmed) {
+            index = render_html_block(&lines, index, base, out);
+            continue;
+        }
+
         // Paragraph: gather until a blank line or another block starts.
         let mut paragraph = String::new();
         while index < lines.len() {
@@ -180,6 +187,127 @@ fn render_blocks(
         let spans = parse_inline(&paragraph, base, theme);
         out.extend(wrap_spans(&spans, width));
     }
+}
+
+/// Block-level HTML tags. Inline tags inside a paragraph stay part of it.
+fn is_html_block_start(line: &str) -> bool {
+    let trimmed = line.trim_start();
+    let rest = trimmed
+        .strip_prefix("</")
+        .or_else(|| trimmed.strip_prefix('<'))
+        .unwrap_or("");
+    let name: String = rest
+        .chars()
+        .take_while(char::is_ascii_alphanumeric)
+        .collect::<String>()
+        .to_ascii_lowercase();
+    matches!(
+        name.as_str(),
+        "address"
+            | "article"
+            | "aside"
+            | "base"
+            | "basefont"
+            | "blockquote"
+            | "body"
+            | "caption"
+            | "center"
+            | "col"
+            | "colgroup"
+            | "dd"
+            | "details"
+            | "dialog"
+            | "dir"
+            | "div"
+            | "dl"
+            | "dt"
+            | "fieldset"
+            | "figcaption"
+            | "figure"
+            | "footer"
+            | "form"
+            | "frame"
+            | "frameset"
+            | "h1"
+            | "h2"
+            | "h3"
+            | "h4"
+            | "h5"
+            | "h6"
+            | "head"
+            | "header"
+            | "hr"
+            | "html"
+            | "iframe"
+            | "legend"
+            | "li"
+            | "link"
+            | "main"
+            | "menu"
+            | "menuitem"
+            | "nav"
+            | "noframes"
+            | "ol"
+            | "optgroup"
+            | "option"
+            | "p"
+            | "param"
+            | "pre"
+            | "script"
+            | "search"
+            | "section"
+            | "style"
+            | "summary"
+            | "table"
+            | "tbody"
+            | "td"
+            | "textarea"
+            | "tfoot"
+            | "th"
+            | "thead"
+            | "title"
+            | "tr"
+            | "track"
+            | "ul"
+    )
+}
+
+/// Copies raw HTML lines without wrapping or reflowing. A `<pre>`-style block
+/// keeps its blank lines until its closing tag; every other block ends at the
+/// first blank line, as Markdown does.
+fn render_html_block(lines: &[&str], start: usize, base: Style, out: &mut Vec<Line>) -> usize {
+    let mut index = start;
+    let mut closing: Option<&str> = None;
+    while index < lines.len() {
+        let line = lines[index].trim_end();
+        if index > start && closing.is_none() && line.trim().is_empty() {
+            break;
+        }
+        if closing.is_none() {
+            closing = ["pre", "script", "style", "textarea"]
+                .into_iter()
+                .find(|tag| opens_tag(line, tag));
+        }
+        out.push(Line::styled(line, base));
+        index += 1;
+        if let Some(tag) = closing {
+            if line.to_ascii_lowercase().contains(&format!("</{tag}")) {
+                break;
+            }
+        }
+    }
+    index
+}
+
+fn opens_tag(line: &str, tag: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    let needle = format!("<{tag}");
+    lower.match_indices(&needle).any(|(offset, _)| {
+        match lower[offset + needle.len()..].chars().next() {
+            Some(ch) => ch == '>' || ch.is_ascii_whitespace(),
+            None => true,
+        }
+    })
 }
 
 fn fence_start(line: &str) -> Option<(&str, Option<String>)> {
@@ -788,5 +916,25 @@ mod tests {
     fn summarize_takes_the_first_meaningful_line() {
         assert_eq!(summarize("# Title here\ntext", 20), "Title here");
         assert_eq!(summarize("```sh\nls\n```", 20), "ls");
+    }
+
+    #[test]
+    fn raw_html_blocks_keep_their_rows() {
+        let source = "<div align=\"center\">\n<pre>\n ██████╗  ██╗\n██╔═══██╗ ╚██╗\n</pre>\n</div>\n\n# Oxide";
+        let lines = render_width(source, 20, &theme());
+        let all = texts(&lines);
+        assert_eq!(all[0], "<div align=\"center\">");
+        assert_eq!(all[1], "<pre>");
+        assert_eq!(all[2], " ██████╗  ██╗");
+        assert_eq!(all[3], "██╔═══██╗ ╚██╗");
+        assert_eq!(all[4], "</pre>");
+        assert_eq!(all[5], "</div>");
+        assert!(all.iter().any(|line| line.contains("Oxide")), "{all:?}");
+    }
+
+    #[test]
+    fn inline_html_stays_in_its_paragraph() {
+        let lines = render_width("Text with <span>inline</span> HTML", 40, &theme());
+        assert_eq!(texts(&lines), vec!["Text with <span>inline</span> HTML"]);
     }
 }

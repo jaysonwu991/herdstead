@@ -16,6 +16,8 @@ const assert = require('node:assert/strict');
   let installError = null;
   let installs = 0;
   let checks = 0;
+  let fullscreenCalls = 0;
+  const zoomCalls = [];
   page.on('pageerror', error => failures.push(error.message));
   const run = runtime(event => { page.evaluate(event => window.__desktopEvent?.(event), event).catch(() => {}); }, { shell: '/bin/zsh', integration: true, home: true });
   try {
@@ -33,6 +35,8 @@ const assert = require('node:assert/strict');
         return null;
       }
       if (name === 'bridge_state') return run.events();
+      if (name === 'set_zoom') { zoomCalls.push(args.scale); return null; }
+      if (name === 'toggle_fullscreen') { fullscreenCalls++; return null; }
       if (name === 'bridge_request') {
         if (args.message.action?.type === 'scroll_pane') scrollActions.push(args.message.action);
         return run.request(args.message);
@@ -69,10 +73,24 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#workspaces .name').first().textContent(), '~');
     assert.equal(await page.locator('#workspaces .initial').first().textContent(), '~');
     await page.waitForFunction(() => document.querySelector('#file-breadcrumb').textContent === '~');
-    for (const selector of ['#find-button', '#settings-button', '.file-filter', '.file-row.directory']) {
+    for (const selector of ['#find-button', '#settings-button', '.file-filter']) {
       const size = await page.locator(`${selector} .ui-icon`).first().boundingBox();
       assert.equal(size.width, 16, `${selector} icon width`);
       assert.equal(size.height, 16, `${selector} icon height`);
+    }
+    const chevron = await page.locator('.file-row.directory .file-icon .ui-icon').first().boundingBox();
+    const folder = await page.locator('.file-row.directory .file-icon .ui-icon').last().boundingBox();
+    assert.deepEqual([chevron.width, chevron.height], [13, 13], 'Directory chevron stays compact');
+    assert.deepEqual([folder.width, folder.height], [18, 18], 'Folder icon is large enough to read');
+    const fileIcon = await page.locator('.file-row:not(.directory) .file-icon .ui-icon').first().boundingBox();
+    assert.deepEqual([fileIcon.width, fileIcon.height], [18, 18], 'File icon matches the folder icon size');
+    assert.notEqual(
+      await page.locator('.file-row:not(.directory) .file-icon .ui-icon path').first().getAttribute('d'),
+      await page.locator('.file-row.directory .file-icon .ui-icon').last().locator('path').getAttribute('d'),
+      'Files and folders use different icons',
+    );
+    for (const selector of ['.brand', '#topbar']) {
+      assert.equal(await page.locator(selector).getAttribute('data-tauri-drag-region'), 'deep', `${selector} is a draggable title-bar region`);
     }
     await run.request({ type: 'action', action: { type: 'rename_workspace', name: 'My home' } });
     await page.waitForFunction(() => document.querySelector('#workspaces .name').textContent === 'My home');
@@ -101,10 +119,9 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#composer').count(), 0);
     await run.wait(event => { const p = event.snapshot.panes.find(p => p.id === event.snapshot.focused); const g = p?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable zsh prompt');
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input' && document.body.classList.contains('terminal-focused'));
-    assert.equal(await page.locator('.pane.focused .cursor').evaluate(node => getComputedStyle(node).animationName), 'terminal-cursor-blink', 'The active terminal cursor blinks');
+    assert.equal(await page.locator('.cursor').count(), 0, 'No synthetic caret covers the terminal text');
     await page.locator('#find-button').click();
     assert.equal(await page.locator('#find-input').evaluate(node => document.activeElement === node), true, 'Find retains keyboard focus');
-    assert.equal(await page.locator('.pane.focused .cursor').evaluate(node => getComputedStyle(node).animationName), 'none', 'The cursor stops blinking when terminal input loses focus');
     await page.locator('#find-close').click();
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input');
     const literal = '**bold** *italic* `code` [GitHub](https://github.com) https://example.com';
@@ -152,6 +169,11 @@ const assert = require('node:assert/strict');
       };
     }, run.latest());
     assert.deepEqual(stability, { handles: true, titles: true, row: true, signaturesInDOM: 0 }, 'Repeated terminal frames retain resize handles, headers and unchanged rows without copying row JSON into the DOM');
+    // One click on a pane is enough: keys follow immediately, not after a second one.
+    const clickedPane = page.locator('.pane').first();
+    await clickedPane.locator('.rows').click();
+    await page.keyboard.type('printf "ONE-CLICK\\n"'); await page.keyboard.press('Enter');
+    await clickedPane.locator('.terminal-row').filter({ hasText: 'ONE-CLICK' }).first().waitFor();
     await page.evaluate(() => {
       const pane = document.querySelector('.pane');
       for (let i = 0; i < 24; i++) pane.dispatchEvent(new WheelEvent('wheel', { deltaY: -1, bubbles: true, cancelable: true }));
@@ -218,6 +240,18 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input');
     await page.locator('#palette-button').click(); await page.locator('#command-input').fill('Split terminal down');
     await page.keyboard.press('Enter');
+    await page.evaluate(() => window.__nativeCommand('zoom-in'));
+    await page.waitForFunction(() => localStorage.getItem('zoom') === '1.1');
+    assert.equal(zoomCalls.at(-1), 1.1, 'The native View menu zooms the window');
+    await page.keyboard.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+-`);
+    await page.waitForFunction(() => localStorage.getItem('zoom') === '1');
+    await page.locator('#palette-button').click(); await page.locator('#command-input').fill('Actual size');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => !document.querySelector('#palette').open);
+    await page.locator('#palette-button').click(); await page.locator('#command-input').fill('Toggle full screen');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => !document.querySelector('#palette').open);
+    assert.equal(fullscreenCalls, 1, 'The full-screen command reaches the native window');
     await page.setViewportSize({ width: 1100, height: 740 });
     await page.waitForTimeout(300);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
@@ -226,6 +260,6 @@ const assert = require('node:assert/strict');
     fs.mkdirSync(path.resolve(__dirname, '../test-results'), { recursive: true });
     await page.screenshot({ path: path.resolve(__dirname, '../test-results/desktop.png') });
     assert.deepEqual(failures, []);
-    console.log('Desktop E2E passed: real PTY input, splits, tabs, shell input Markdown and link logos, shell completion, files, inline Markdown, @path, themes, palette and resize.');
+    console.log('Desktop E2E passed: real PTY input, splits, tabs, one-click focus, shell input Markdown and link logos, shell completion, files, inline Markdown, @path, themes, palette, zoom, full screen and resize.');
   } finally { await browser.close(); await run.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

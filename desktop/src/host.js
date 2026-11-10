@@ -5,6 +5,8 @@ window.herdstead = {
   checkUpdate: () => invoke('check_update'),
   installUpdate: () => invoke('install_update'),
   reconnect: () => invoke('bridge_reconnect'),
+  setZoom: scale => invoke('set_zoom', { scale }),
+  toggleFullScreen: () => invoke('toggle_fullscreen'),
   folder: () => invoke('choose_folder'),
   external: target => invoke('open_external', { target }),
   onEvent: callback => {
@@ -16,7 +18,5 @@ window.herdstead = {
     return () => ready.then(unlisten => unlisten());
   },
 };
-// Tauri delegates the draggable title bar to the native window.
-for (const selector of ['.brand', '#topbar']) document.querySelector(selector)?.addEventListener('mousedown', event => {
-  if (event.button === 0 && !event.target.closest('button, #tabs')) window.__TAURI__.window.getCurrentWindow().startDragging();
-});
+// Tauri's drag-region script moves the window and maximises it on a double
+// click, the same title-bar behaviour as Oxide.

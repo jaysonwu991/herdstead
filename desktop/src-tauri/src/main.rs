@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
-use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{AboutMetadata, Menu, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -293,6 +293,24 @@ async fn install_update(
     app.restart();
 }
 
+#[tauri::command]
+fn set_zoom(window: tauri::WebviewWindow, scale: f64) -> Result<(), String> {
+    if !scale.is_finite() {
+        return Err("The zoom level is not a number".into());
+    }
+    window
+        .set_zoom(scale.clamp(0.7, 1.6))
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn toggle_fullscreen(window: tauri::WebviewWindow) -> Result<(), String> {
+    let fullscreen = window.is_fullscreen().map_err(|err| err.to_string())?;
+    window
+        .set_fullscreen(!fullscreen)
+        .map_err(|err| err.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -343,12 +361,70 @@ fn main() {
             #[cfg(target_os = "macos")]
             menu.remove_at(0)?;
             menu.insert(&application, 0)?;
+            // The default View menu only exists on macOS; Linux gets the same
+            // zoom entries plus a full-screen item the toolkit lacks.
+            let view = Submenu::with_items(
+                app,
+                "View",
+                true,
+                &[
+                    &MenuItem::with_id(app, "zoom-in", "Zoom In", true, Some("CmdOrCtrl+="))?,
+                    &MenuItem::with_id(app, "zoom-out", "Zoom Out", true, Some("CmdOrCtrl+-"))?,
+                    &MenuItem::with_id(
+                        app,
+                        "zoom-reset",
+                        "Actual Size",
+                        true,
+                        Some("CmdOrCtrl+0"),
+                    )?,
+                    &PredefinedMenuItem::separator(app)?,
+                    #[cfg(target_os = "macos")]
+                    &PredefinedMenuItem::fullscreen(app, Some("Enter Full Screen"))?,
+                    #[cfg(not(target_os = "macos"))]
+                    &MenuItem::with_id(
+                        app,
+                        "toggle-fullscreen",
+                        "Toggle Full Screen",
+                        true,
+                        Some("F11"),
+                    )?,
+                ],
+            )?;
+            let mut view_slot = None;
+            let mut window_slot = None;
+            for (index, item) in menu.items()?.into_iter().enumerate() {
+                if let MenuItemKind::Submenu(submenu) = item {
+                    match submenu.text()?.as_str() {
+                        "View" => view_slot = Some(index),
+                        "Window" => window_slot = Some(index),
+                        _ => {}
+                    }
+                }
+            }
+            if let Some(index) = view_slot {
+                menu.remove_at(index)?;
+                menu.insert(&view, index)?;
+            } else if let Some(index) = window_slot {
+                menu.insert(&view, index)?;
+            } else {
+                menu.append(&view)?;
+            }
             Ok(menu)
         })
         .on_menu_event(|app, event| {
+            if event.id().as_ref() == "toggle-fullscreen" {
+                if let Some(window) = app.get_webview_window("main") {
+                    let fullscreen = window.is_fullscreen().unwrap_or(false);
+                    let _ = window.set_fullscreen(!fullscreen);
+                }
+                return;
+            }
             let command = match event.id().as_ref() {
                 "settings" => "settings",
                 "check-for-updates" => "check-for-updates",
+                "zoom-in" => "zoom-in",
+                "zoom-out" => "zoom-out",
+                "zoom-reset" => "zoom-reset",
                 _ => return,
             };
             if let Some(window) = app.get_webview_window("main") {
@@ -363,6 +439,8 @@ fn main() {
             bridge_reconnect,
             choose_folder,
             open_external,
+            set_zoom,
+            toggle_fullscreen,
             check_update,
             install_update
         ])

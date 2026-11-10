@@ -168,6 +168,9 @@ semantic control/function keys, bracketed paste and daemon-owned scrollback.
 Native selection/copy and IME input remain available. Mouse reporting is not
 forwarded to applications; the mouse controls panes, selection and scrollback.
 
+`cat file` prints one blank row before its rendered document, so the output is
+not glued to the command that produced it.
+
 ## Controls
 
 The shortcut modifier is Cmd on macOS and Ctrl on Linux.
@@ -184,11 +187,22 @@ The shortcut modifier is Cmd on macOS and Ctrl on Linux.
 | Cmd/Ctrl+B | toggle Files |
 | Cmd/Ctrl+F | find matching rows in visible output |
 | Cmd/Ctrl+, | settings |
-| Cmd/Ctrl+plus/minus | change terminal font size |
+| Cmd/Ctrl+plus/minus | zoom the window |
+| Cmd/Ctrl+0 | actual size |
+| Ctrl+Cmd+F / F11 | toggle full screen |
+
+The window opens maximised on launch, like Oxide, so the traffic lights and menu
+bar stay where the reader expects them. Zoom is remembered between launches,
+within 0.7–1.6. Terminal font size is set from **Settings**, separately from the
+window zoom.
 
 Each pane header has **split right**, **split down**, **zoom/restore** and
 **close** controls. They focus and act on that pane, including when another pane
 was previously focused.
+
+Dragging the header moves the window. Double-clicking the header (the sidebar
+brand or the tab strip) maximises or restores it, the same title-bar behaviour
+as Oxide.
 
 Drag between panes to resize. Scroll over a shell to move through daemon
 scrollback, and click its scroll offset to return to live output. Viewer panes

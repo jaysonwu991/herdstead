@@ -40,7 +40,10 @@ test('real zsh completes and expands @paths, honours zshrc and keeps pipelines r
     await run.wait(event => plain(event).split('\n').some(line => line.trim() === String(size)), 'uncoloured pipe output');
     await ready();
     await action({ type: 'send_text', text: 'cat README.md', submit: true });
-    await run.wait(event => plain(event).includes('Desktop workspace') && event.snapshot.panes[0].grid.lines.some(line => line.runs.some(run => run.style?.fg)), 'rich cat output');
+    const rich = await run.wait(event => plain(event).includes('Desktop workspace') && event.snapshot.panes[0].grid.lines.some(line => line.runs.some(run => run.style?.fg)), 'rich cat output');
+    const richRows = plain(rich).split('\n');
+    const heading = richRows.findIndex(line => line.includes('Desktop workspace'));
+    assert.ok(heading > 0 && richRows[heading - 1].trim() === '', 'A blank row separates the command from the rendered document');
     await ready();
     fs.writeFileSync(path.join(run.cwd, 'a b.rs'), 'const VALUE: u32 = 42;\n');
     await action({ type: 'send_text', text: `printf 'AUTO=%s\\n' @a`, submit: false });
