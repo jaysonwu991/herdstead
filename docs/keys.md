@@ -14,7 +14,12 @@ The shortcut modifier is Cmd on macOS and Ctrl on Linux.
 | Cmd/Ctrl+B | toggle Files |
 | Cmd/Ctrl+F | find matching rows in visible output |
 | Cmd/Ctrl+, | settings |
-| Cmd/Ctrl+plus/minus | change terminal font size |
+| Cmd/Ctrl+plus/minus | zoom the window |
+| Cmd/Ctrl+0 | actual size |
+| Ctrl+Cmd+F / F11 | toggle full screen |
+
+The window opens maximised on launch. Terminal font size is set from
+**Settings**, separately from the window zoom.
 
 Terminal keys, paste and input methods go to the focused PTY. Unclaimed native
 shortcuts remain available to the operating system. Links open with Cmd-click

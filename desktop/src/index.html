@@ -8,14 +8,14 @@
 </head>
 <body>
   <aside id="sidebar">
-    <header class="brand"><img src="logo.svg" alt=""><strong>Herdstead</strong><button id="find-button" title="Find in visible output (⌘F)" aria-label="Find in visible output"><span data-icon="search"></span></button><button id="palette-button" title="Commands (⌘⇧P)" aria-label="Open command palette"><span data-icon="right"></span></button></header>
+    <header class="brand" data-tauri-drag-region="deep"><img src="logo.svg" alt=""><strong>Herdstead</strong><button id="find-button" title="Find in visible output (⌘F)" aria-label="Find in visible output"><span data-icon="search"></span></button><button id="palette-button" title="Commands (⌘⇧P)" aria-label="Open command palette"><span data-icon="right"></span></button></header>
     <div class="section-heading"><span>Spaces</span><button id="add-workspace" title="Add workspace" aria-label="Add workspace">+</button></div>
     <nav id="workspaces" aria-label="Workspaces"></nav>
     <section class="agents-section"><div class="section-heading"><span>Agents</span><span id="agent-count" class="count">0</span></div><div id="agents"><p class="empty">Agents appear here when they start working in a terminal.</p></div></section>
     <footer class="sidebar-footer"><button id="settings-button"><span data-icon="settings"></span><span>Settings</span><kbd>⌘ ,</kbd></button></footer>
   </aside>
   <main>
-    <header id="topbar"><nav id="tabs" aria-label="Terminal tabs"></nav><button id="new-tab" title="New tab (⌘T)" aria-label="New tab">+</button><div class="toolbar"><button id="files-button" aria-pressed="true"><span data-icon="files"></span><span>Files</span></button></div></header>
+    <header id="topbar" data-tauri-drag-region="deep"><nav id="tabs" aria-label="Terminal tabs"></nav><button id="new-tab" title="New tab (⌘T)" aria-label="New tab">+</button><div class="toolbar"><button id="files-button" aria-pressed="true"><span data-icon="files"></span><span>Files</span></button></div></header>
     <div id="banner" role="alert" hidden><span></span><button id="reconnect">Reconnect</button><button id="dismiss-banner" aria-label="Dismiss">×</button></div>
     <div id="content">
       <section id="terminal-column">

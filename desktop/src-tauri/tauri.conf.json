@@ -15,6 +15,7 @@
         "title": "Herdstead",
         "width": 1500,
         "height": 960,
+        "maximized": true,
         "minWidth": 900,
         "minHeight": 600,
         "titleBarStyle": "Overlay",
