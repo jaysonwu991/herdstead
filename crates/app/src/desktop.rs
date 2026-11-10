@@ -11,9 +11,11 @@ use herdstead_core::config::Config;
 use herdstead_core::geom::Rect;
 use herdstead_core::model::Size;
 use herdstead_core::paths::Paths;
-use herdstead_core::protocol::{encode_line, Action, Event, PaneFrame, Request, MAX_FRAME_BYTES};
+use herdstead_core::protocol::{
+    encode_line, Action, CursorPos, Event, PaneFrame, Request, MAX_FRAME_BYTES,
+};
 use herdstead_core::Theme;
-use herdstead_render::{link, markdown, term, Line};
+use herdstead_render::{link, markdown, term, Line, Span, Style};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -115,36 +117,134 @@ fn palette(theme: &Theme) -> Value {
         .collect()
 }
 
-// Serialise the shared renderer's output, rather than implementing highlighting
-// or Markdown a second time in JavaScript.
-fn rows(lines: Vec<Line>) -> Value {
-    json!(lines.into_iter().map(|line| {
-        let mut column = 0;
-        let mut space = None;
-        let mut previous_link = None;
-        let mut badges = std::collections::BTreeSet::new();
-        line.spans.into_iter().map(|span| {
-            let style = span.style;
-            let link = span.link.as_ref().map(|target| {
-                let cell = space.unwrap_or(usize::MAX);
-                let first = previous_link.as_ref() != Some(target);
-                let offset = (first && badges.insert(cell)).then_some(space.map_or(column + 1, |space| column - space));
-                json!({"target": target.target(), "url": target.is_url(), "badge_offset": offset})
-            });
-            previous_link = span.link.clone();
-            for ch in span.text.chars() {
-                if ch.is_whitespace() { space = Some(column); }
-                column += herdstead_core::text::char_width(ch);
+// Splits the cell under the block cursor into a run of its own, so a client
+// can draw the block on that character instead of over the text. A trimmed
+// prompt row can stop short of the cursor, so the cell is padded back to its
+// terminal column.
+fn cursor_cell(spans: Vec<Span>, col: usize) -> (Vec<Span>, Option<usize>) {
+    let mut runs: Vec<Span> = Vec::with_capacity(spans.len() + 2);
+    let mut start = 0;
+    let mut marked = None;
+    for span in spans {
+        let width = span.width();
+        if marked.is_some() || col >= start + width {
+            start += width;
+            runs.push(span);
+            continue;
+        }
+        let (style, link) = (span.style, span.link);
+        let mut before = String::new();
+        let mut cell = String::new();
+        let mut after = String::new();
+        let mut at = start;
+        for ch in span.text.chars() {
+            let next = at + herdstead_core::text::char_width(ch);
+            if (at..next).contains(&col) {
+                cell.push(ch);
+            } else if cell.is_empty() {
+                before.push(ch);
+            } else {
+                after.push(ch);
             }
-            json!({
-                "text": span.text,
-                "fg": style.fg.map(|c| c.to_hex()), "bg": style.bg.map(|c| c.to_hex()),
-                "bold": style.bold, "dim": style.dim, "italic": style.italic,
-                "underline": style.underline, "strike": style.strikethrough,
-                "inverse": style.reversed, "link": link
-            })
-        }).collect::<Vec<_>>()
-    }).collect::<Vec<_>>())
+            at = next;
+        }
+        start += width;
+        if !before.is_empty() {
+            runs.push(Span {
+                text: before,
+                style,
+                link: link.clone(),
+            });
+        }
+        marked = Some(runs.len());
+        runs.push(Span {
+            text: cell,
+            style,
+            link: link.clone(),
+        });
+        if !after.is_empty() {
+            runs.push(Span {
+                text: after,
+                style,
+                link,
+            });
+        }
+    }
+    if marked.is_none() {
+        let style = runs.last().map_or_else(Style::plain, |span| span.style);
+        if col > start {
+            runs.push(Span::new(" ".repeat(col - start), style));
+        }
+        marked = Some(runs.len());
+        runs.push(Span::new(" ", style));
+    }
+    (runs, marked)
+}
+
+// Serialise the shared renderer's output, rather than implementing highlighting
+// or Markdown a second time in JavaScript. `cursor` marks the cell the client
+// draws its block on, so the client never places one over the text.
+fn rows(lines: Vec<Line>, cursor: Option<CursorPos>) -> Value {
+    json!(lines
+        .into_iter()
+        .enumerate()
+        .map(|(index, line)| {
+            let (spans, marked) = match cursor {
+                Some(cursor) if usize::from(cursor.row) == index => {
+                    cursor_cell(line.spans, usize::from(cursor.col))
+                }
+                _ => (line.spans, None),
+            };
+            let mut column = 0usize;
+            let mut gap: Option<usize> = None;
+            let mut previous_link = None;
+            let mut badges = std::collections::BTreeSet::new();
+            spans
+                .into_iter()
+                .enumerate()
+                .map(|(position, span)| {
+                    let style = span.style;
+                    let link = span.link.as_ref().map(|target| {
+                        // A logo takes the two cells before its link: the row's
+                        // one-cell gutter counts when the whitespace run starts
+                        // the row. One cell is a speck beside 14px text, so a
+                        // link with less room keeps only its colour and underline.
+                        let room =
+                            gap.map_or(0, |start| column - start) + usize::from(gap == Some(0));
+                        let cells = 2;
+                        let first = previous_link.as_ref() != Some(target);
+                        let fitted = room >= cells;
+                        let placed = first && fitted && badges.insert(column.saturating_sub(cells));
+                        let offset = placed.then_some(cells);
+                        json!({
+                            "target": target.target(), "url": target.is_url(),
+                            "badge_offset": offset, "badge_cells": cells
+                        })
+                    });
+                    previous_link = span.link.clone();
+                    for ch in span.text.chars() {
+                        if ch.is_whitespace() {
+                            gap.get_or_insert(column);
+                        } else {
+                            gap = None;
+                        }
+                        column += herdstead_core::text::char_width(ch);
+                    }
+                    let mut run = json!({
+                        "text": span.text,
+                        "fg": style.fg.map(|c| c.to_hex()), "bg": style.bg.map(|c| c.to_hex()),
+                        "bold": style.bold, "dim": style.dim, "italic": style.italic,
+                        "underline": style.underline, "strike": style.strikethrough,
+                        "inverse": style.reversed, "link": link
+                    });
+                    if marked == Some(position) {
+                        run["cursor"] = Value::Bool(true);
+                    }
+                    run
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>())
 }
 
 fn directory(path: &Path, config: &Config) -> Result<Value> {
@@ -245,7 +345,7 @@ pub fn run(
                                         })
                                         .collect();
                                 }
-                                (pane.id.0.to_string(), rows(lines))
+                                (pane.id.0.to_string(), rows(lines, grid.cursor))
                             })
                         })
                         .collect();
@@ -319,13 +419,16 @@ pub fn run(
                         &config,
                     )
                     .map_err(anyhow::Error::msg)?;
-                    Ok(rows(lines))
+                    Ok(rows(lines, None))
                 }
-                Command::Preview { text, width } => Ok(rows(markdown::render_width(
-                    &text,
-                    usize::from(width.clamp(4, 1000)),
-                    &theme.lock().unwrap(),
-                ))),
+                Command::Preview { text, width } => Ok(rows(
+                    markdown::render_width(
+                        &text,
+                        usize::from(width.clamp(4, 1000)),
+                        &theme.lock().unwrap(),
+                    ),
+                    None,
+                )),
                 Command::Theme { name } => {
                     let mut selected = Theme::load(&name, &paths.themes_dir());
                     selected
@@ -425,12 +528,12 @@ mod tests {
     }
 
     #[test]
-    fn link_badges_use_existing_cells_and_never_change_source() {
+    fn link_badges_never_change_the_source_text() {
         let target = Link::Url("https://github.com".into());
         let mut line = Line::plain("日本 ");
         line.push(Span::plain("https://git").linked(target.clone()));
         line.push(Span::new("hub.com", Style::plain().bold()).linked(target));
-        let data = rows(vec![line]);
+        let data = rows(vec![line], None);
         let spans = data[0].as_array().unwrap();
         assert_eq!(
             spans
@@ -439,7 +542,98 @@ mod tests {
                 .collect::<String>(),
             "日本 https://github.com"
         );
-        assert_eq!(spans[1]["link"]["badge_offset"], 1);
         assert!(spans[2]["link"]["badge_offset"].is_null());
+    }
+
+    fn badge(line: Line) -> Value {
+        let data = rows(vec![line], None);
+        data[0][1]["link"].clone()
+    }
+
+    #[test]
+    fn a_badge_takes_the_two_cells_before_its_link() {
+        // The row's one-cell gutter joins the leading space of a row-start link.
+        let mut line = Line::plain(" ");
+        line.push(
+            Span::plain("crates/app/src/main.rs").linked(Link::path("crates/app/src/main.rs")),
+        );
+        let data = rows(vec![line], None);
+        assert_eq!(row_text(&data, 0), " crates/app/src/main.rs");
+        assert_eq!(data[0][1]["link"]["badge_offset"], 2);
+        assert_eq!(data[0][1]["link"]["badge_cells"], 2);
+
+        // Two spaces mid-row are room enough as well.
+        let mut line = Line::plain("see  ");
+        line.push(Span::plain("https://x.dev").linked(Link::Url("https://x.dev".into())));
+        assert_eq!(badge(line)["badge_offset"], 2);
+    }
+
+    #[test]
+    fn a_badge_needs_two_free_cells_and_never_covers_text() {
+        // One space is a bare cell: no logo, and no character is hidden.
+        let mut line = Line::plain("see ");
+        line.push(Span::plain("https://x.dev").linked(Link::Url("https://x.dev".into())));
+        assert!(badge(line)["badge_offset"].is_null());
+
+        // A link glued to text has no free cell at all.
+        let mut line = Line::plain("see:");
+        line.push(Span::plain("https://x.dev").linked(Link::Url("https://x.dev".into())));
+        assert!(badge(line)["badge_offset"].is_null());
+    }
+
+    fn row_text(data: &Value, row: usize) -> String {
+        data[row]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|run| run["text"].as_str().unwrap())
+            .collect()
+    }
+
+    fn marked(row: &Value) -> Vec<&Value> {
+        row.as_array()
+            .unwrap()
+            .iter()
+            .filter(|run| run["cursor"] == true)
+            .collect()
+    }
+
+    #[test]
+    fn the_cursor_cell_becomes_its_own_run_and_the_text_is_unchanged() {
+        let lines = vec![Line::plain("HS> abc"), Line::plain("next")];
+        let data = rows(lines, Some(CursorPos { row: 0, col: 5 }));
+        assert_eq!(row_text(&data, 0), "HS> abc");
+        assert_eq!(marked(&data[0]).len(), 1);
+        assert_eq!(marked(&data[0])[0]["text"], "b");
+        assert_eq!(row_text(&data, 1), "next");
+        assert!(marked(&data[1]).is_empty());
+    }
+
+    #[test]
+    fn a_cursor_past_the_trimmed_row_is_padded_to_its_column() {
+        let data = rows(vec![Line::plain("HS>")], Some(CursorPos { row: 0, col: 4 }));
+        assert_eq!(row_text(&data, 0), "HS>  ");
+        let cells = data[0].as_array().unwrap();
+        let cursor = cells.last().unwrap();
+        assert_eq!(cursor["text"], " ");
+        assert_eq!(cursor["cursor"], true);
+    }
+
+    #[test]
+    fn a_wide_cursor_cell_keeps_its_character() {
+        let data = rows(
+            vec![Line::plain("日本")],
+            Some(CursorPos { row: 0, col: 2 }),
+        );
+        assert_eq!(row_text(&data, 0), "日本");
+        assert_eq!(marked(&data[0]).len(), 1);
+        assert_eq!(marked(&data[0])[0]["text"], "本");
+    }
+
+    #[test]
+    fn a_hidden_cursor_marks_no_cell() {
+        let data = rows(vec![Line::plain("HS> "), Line::plain("x")], None);
+        assert!(marked(&data[0]).is_empty());
+        assert!(marked(&data[1]).is_empty());
     }
 }

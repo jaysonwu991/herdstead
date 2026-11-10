@@ -244,7 +244,10 @@ has no knowledge of desktop presentation. No `Action` or `Snapshot` fields chang
 
 The bridge uses newline-delimited JSON with a 32 MiB incoming message cap.
 Runtime snapshots retain their protocol shape, alongside `screens` containing
-styled spans from `render::term` and `render::link`. Desktop requests have a
+styled spans from `render::term` and `render::link`. The pane's cursor cell is
+the run carrying `cursor: true`, padded back to its column when the renderer
+trimmed a prompt row short, so the client draws a block on a cell instead of
+guessing where the text ended up. Desktop requests have a
 numeric `id` and a `type`: `action` forwards a typed daemon action; `directory`
 returns a bounded shallow listing; `viewer` invokes the existing client viewer;
 `preview` renders Markdown; `theme` changes the bridge's client-local

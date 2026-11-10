@@ -16,6 +16,14 @@ dialog{background:var(--panel);color:var(--fg);border:1px solid var(--border);bo
 
 .rows{position:relative;margin-left:var(--cell-width)}.terminal-row{position:relative}.term-link{position:relative}.link-logo{position:absolute;top:0;width:var(--cell-width);height:var(--line-height);color:var(--link);background:var(--bg);stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;fill:none;user-select:none;cursor:pointer;z-index:1}
 
+/* The cursor is a cell of its row, not an overlay: it cannot drift over the
+   text, and swapping the cell's own colours keeps the glyph under it readable. */
+.terminal-row .cursor{display:inline-block;min-width:var(--cell-width);height:var(--line-height);vertical-align:top;color:var(--cursor-glyph,var(--bg));background-color:var(--cursor-block,var(--fg))}
+body.terminal-focused .pane.focused .cursor{animation:terminal-cursor-blink 1s step-end infinite}
+@keyframes terminal-cursor-blink{0%,100%{color:var(--cursor-glyph,var(--bg));background-color:var(--cursor-block,var(--fg))}50%{color:var(--cursor-rest-fg,var(--fg));background-color:var(--cursor-rest-bg,transparent)}}
+body:not(.terminal-focused) .pane .cursor,.pane:not(.focused) .cursor{animation:none;color:var(--cursor-rest-fg,var(--fg));background-color:var(--cursor-rest-bg,transparent);box-shadow:inset 0 0 0 1px var(--muted)}
+@media(prefers-reduced-motion:reduce){body.terminal-focused .pane.focused .cursor{animation:none}}
+
 /* Chrome icons use fixed geometry rather than font-dependent symbol glyphs. */
 .ui-icon{width:16px;height:16px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle;pointer-events:none}
 .toolbar button,#terminal-tools button{display:inline-flex;align-items:center;justify-content:center;gap:5px}

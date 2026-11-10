@@ -24,7 +24,11 @@
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
     svg.classList.add('link-logo'); svg.dataset.kind = kind;
+    // The badge fills the free cells the daemon found before the link, which
+    // keeps the icon legible and clear of the characters it introduces.
+    const cells = Math.min(Math.max(Number(link.badge_cells) || 1, 1), 2);
     svg.style.left = `calc(-${link.badge_offset} * var(--cell-width))`;
+    svg.style.width = `calc(${cells} * var(--cell-width))`;
     const paths = {
       github: 'M9 19c-4 1-4-2-6-3m12 6v-4c0-1 .2-1.7-.5-2.4 3-.3 6-1.4 6-6.6 0-1.5-.5-2.7-1.4-3.7.1-.4.6-1.9-.2-3.3 0 0-1.2-.4-3.9 1.4a13 13 0 0 0-7 0C4.3 1.6 3.1 2 3.1 2c-.8 1.4-.3 2.9-.2 3.3C2 6.3 1.5 7.5 1.5 9c0 5.2 3 6.3 6 6.6-.5.5-.6 1.1-.5 2.4v4',
       web: 'M3 12h18M12 3c5 5 5 13 0 18M12 3c-5 5-5 13 0 18M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
@@ -42,8 +46,18 @@
       const span = document.createElement('span');
       span.textContent = run.text;
       const fg = run.fg || 'var(--fg)', bg = run.bg || 'var(--bg)';
-      span.style.color = run.inverse ? bg : fg;
-      if (run.bg || run.inverse) span.style.backgroundColor = run.inverse ? fg : bg;
+      // A cursor cell swaps its own colours so the character under the block
+      // stays readable; the blink and the unfocused outline are CSS.
+      const text = run.inverse ? bg : fg, fill = run.inverse ? fg : bg;
+      if (run.cursor) {
+        span.style.setProperty('--cursor-block', text);
+        span.style.setProperty('--cursor-glyph', fill);
+        span.style.setProperty('--cursor-rest-bg', run.bg || run.inverse ? fill : 'transparent');
+        span.style.setProperty('--cursor-rest-fg', text);
+      } else {
+        span.style.color = text;
+        if (run.bg || run.inverse) span.style.backgroundColor = fill;
+      }
       if (run.bold) span.style.fontWeight = '700';
       if (run.dim) span.style.opacity = '.6';
       if (run.italic) span.style.fontStyle = 'italic';
@@ -62,6 +76,7 @@
         });
       }
       previousLink = run.link?.target || null;
+      if (run.cursor) span.classList.add('cursor');
       row.append(span);
     }
     if (!runs.length) row.append(document.createTextNode('\u200b'));
