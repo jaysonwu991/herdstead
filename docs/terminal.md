@@ -6,10 +6,14 @@ provide split, zoom and close buttons. Drag a divider to resize, click a pane to
 focus it, and use the sidebar to select workspaces. Use **+** beside Spaces
 to pick a project folder.
 
-The cursor blinks while the terminal has keyboard focus and becomes an outline
-when focus moves elsewhere. Reduced-motion preferences keep the active cursor
-solid. Terminal controls return keyboard focus to the shell; search fields and
-dialogs keep focus while you use them.
+The cursor is drawn on its own terminal cell, never as an overlay: the bridge
+marks the cell the shell reports, and the client draws a block that swaps that
+cell's colours so the character underneath stays readable. Rich output and
+scrolling cannot move it off that cell. It blinks while the terminal has keyboard
+focus and becomes an outline when focus moves elsewhere; reduced-motion
+preferences keep the active cursor solid. It is hidden while you scroll back and
+whenever the program hides the cursor. Terminal controls return keyboard focus to
+the shell; search fields and dialogs keep focus while you use them.
 
 Scroll over a pane for daemon-owned history. Click the scroll offset to return
 to live output. Viewers scroll locally. Find searches the visible output, not

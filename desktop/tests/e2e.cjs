@@ -119,11 +119,52 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#composer').count(), 0);
     await run.wait(event => { const p = event.snapshot.panes.find(p => p.id === event.snapshot.focused); const g = p?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable zsh prompt');
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input' && document.body.classList.contains('terminal-focused'));
-    assert.equal(await page.locator('.cursor').count(), 0, 'No synthetic caret covers the terminal text');
+    // The cursor is a cell of its own row: it sits on the empty cell after the
+    // prompt instead of covering the output above it.
+    await page.waitForFunction(() => {
+      const cell = document.querySelector('.pane.focused .terminal-row .cursor');
+      return cell && cell.textContent === ' ' && cell.parentElement.textContent.trim() === 'HS>';
+    });
+    assert.equal(await page.locator('.cursor').count(), 1, 'One block cursor, inside the only terminal');
+    const caret = await page.evaluate(() => {
+      const cell = document.querySelector('.pane.focused .cursor'), row = cell.parentElement;
+      const box = cell.getBoundingClientRect(), line = row.getBoundingClientRect();
+      const prompt = row.firstElementChild.getBoundingClientRect();
+      return {
+        gap: box.left - prompt.right, width: box.width, height: box.height,
+        top: box.top - line.top, lineHeight: line.height,
+        cellWidth: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-width')),
+        animation: getComputedStyle(cell).animationName,
+      };
+    });
+    assert.ok(Math.abs(caret.gap - caret.cellWidth) < 1, `The block sits one cell past the prompt, not over its text (${caret.gap}px)`);
+    assert.ok(Math.abs(caret.width - caret.cellWidth) < 1, 'The block is one cell wide');
+    assert.ok(Math.abs(caret.height - caret.lineHeight) < 1 && Math.abs(caret.top) < 1, 'The block fills its row cell');
+    assert.equal(caret.animation, 'terminal-cursor-blink', 'The focused block blinks');
     await page.locator('#find-button').click();
     assert.equal(await page.locator('#find-input').evaluate(node => document.activeElement === node), true, 'Find retains keyboard focus');
     await page.locator('#find-close').click();
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input');
+    // A logo takes the two cells free before a link — the row's gutter plus the
+    // leading space, as `git` prints paths — so it never sits on a character.
+    await page.keyboard.type("printf ' https://github.com\\n src/main.rs\\n'"); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelectorAll('.pane.focused .link-logo').length === 2);
+    const logos = await page.evaluate(() => [...document.querySelectorAll('.pane.focused .link-logo')].map(logo => {
+      const box = logo.getBoundingClientRect(), link = logo.parentElement.getBoundingClientRect();
+      const scale = Math.min(box.width, box.height) / 24, ink = logo.querySelector('path').getBBox();
+      return {
+        kind: logo.dataset.kind,
+        cells: box.width / parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-width')),
+        gap: link.left - (box.left + (box.width - 24 * scale) / 2 + (ink.x + ink.width) * scale),
+        text: logo.closest('.terminal-row').textContent,
+      };
+    }));
+    assert.deepEqual(logos.map(logo => logo.kind), ['github', 'file'], 'A row-start link carries the logo for its kind');
+    assert.deepEqual(logos.map(logo => logo.text), [' https://github.com', ' src/main.rs'], 'A logo adds no characters to the row');
+    for (const logo of logos) {
+      assert.ok(Math.abs(logo.cells - 2) < 0.1, `A logo fills the two free cells before it (${logo.cells})`);
+      assert.ok(logo.gap > 1, `A logo keeps a gap before the text it introduces (${logo.gap.toFixed(1)}px)`);
+    }
     const literal = '**bold** *italic* `code` [GitHub](https://github.com) https://example.com';
     const draft = `printf '%s' '${literal}' > input-proof.txt`;
     await page.keyboard.type(draft);
@@ -135,6 +176,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(draft => document.querySelector('.pane.focused .rows')?.textContent.includes(draft), draft);
     const originalInput = await page.locator('.pane.focused .rows').textContent();
     assert.ok(originalInput.includes('**bold**'));
+    assert.equal(await page.locator('.pane.focused .link-logo').count(), 2, 'A link with one free cell keeps its colour and underline, not a squeezed logo');
     await githubLogo.click();
     assert.deepEqual(openedLinks, ['https://github.com']);
     assert.equal(fs.existsSync(path.join(run.cwd, 'input-proof.txt')), false, 'Opening a link must not submit the shell input');
@@ -153,6 +195,13 @@ const assert = require('node:assert/strict');
     await page.locator('.pane').first().hover();
     await page.locator('.pane-split-right').first().click(); await page.waitForFunction(() => document.querySelectorAll('.pane').length === 2);
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input');
+    await page.waitForFunction(() => document.querySelectorAll('.pane .cursor').length === 2);
+    const carets = await page.evaluate(() => [...document.querySelectorAll('.pane')].map(pane => {
+      const style = getComputedStyle(pane.querySelector('.cursor'));
+      return { focused: pane.classList.contains('focused'), animation: style.animationName, outline: style.boxShadow !== 'none' };
+    }));
+    assert.deepEqual(carets.find(caret => caret.focused), { focused: true, animation: 'terminal-cursor-blink', outline: false }, 'The focused terminal blinks its block');
+    assert.deepEqual(carets.find(caret => !caret.focused), { focused: false, animation: 'none', outline: true }, 'A pane without keyboard focus draws a hollow block');
     const stability = await page.evaluate(async event => {
       const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
       await frame(); await frame();

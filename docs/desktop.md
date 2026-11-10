@@ -122,11 +122,14 @@ styling does not change shell quoting or the bytes zsh executes. Soft-wrapped
 input retains its cursor columns and complete link targets.
 
 Bare URLs and `[label](https://example.com)` links are recognised before you
-submit. A local logo appears ahead of a link, using an available space or the
-terminal gutter. GitHub, web, file and mail icons require no favicon/network
-requests. Click the icon or Cmd/Ctrl-click the linked text to open it; a focused
-link also opens with Enter. Opening a link does not submit the command. Icons
-are excluded from copied text and never become part of shell input.
+submit. A local logo appears ahead of a link, filling the free cells before it —
+the whitespace plus the terminal gutter when the link starts a row, up to two
+cells — so the icon is legible without touching the characters it introduces. A
+link with no free cell before it gets no logo. GitHub, web, file and mail icons
+require no favicon/network requests. Click the icon or Cmd/Ctrl-click the linked
+text to open it; a focused link also opens with Enter. Opening a link does not
+submit the command. Icons are excluded from copied text and never become part of
+shell input.
 
 ### Files, code and command output
 
@@ -155,7 +158,9 @@ lists, quotes, links and language-labelled code fences in ordinary terminal
 output. It preserves the terminal's row coordinates: no rows are inserted or
 removed. Block interpretation skips the cursor row, soft-wrapped rows, existing
 ANSI-styled output and alternate-screen applications. Input styling is applied
-separately, with source delimiters preserved. For complete document layout,
+separately, with source delimiters preserved. The block cursor is a cell of the
+rendered row, so styling and scrolling never move it over the text. For complete
+document layout,
 including tables and reflowing paragraphs, use `md` or `herdstead render`.
 Disable **Rich terminal output** in Settings whenever literal output is preferable.
 
@@ -250,7 +255,8 @@ integration tests, isolated from user configuration and state. Build it with
 `cargo build` first. The browser E2E test needs Chrome installed, drives the real
 page and real daemon, and substitutes only Tauri's invoke/event transport. It
 checks input Markdown/source preservation, link-logo activation, splits, tabs,
-in-terminal Markdown, file viewers, shell `@path`, themes,
+in-terminal Markdown, the cursor cell (position, size, blink and the hollow
+unfocused block), file viewers, shell `@path`, themes,
 the command palette and resizing. Native webview/IPC and folder picking also
 need a smoke test in the actual Tauri window, along with the native application
 menu and Cmd+, accelerator.
