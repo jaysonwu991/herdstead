@@ -16,15 +16,15 @@ The bundled runtime builds separately; the user interface requires the webview.
 From the repository root:
 
 ```sh
-cd desktop
+cd crates/desktop
 pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
 This builds the runtime, copies it into the desktop bundle's resources, and
 opens the native window. No web server or separate daemon setup is required.
-The desktop is an independent Cargo workspace under `desktop/src-tauri`; the
-terminal workspace remains independently buildable.
+The Tauri crate lives at `crates/desktop/native` and is a member of the root
+Cargo workspace; the webview UI lives at `crates/desktop/ui`.
 
 To open a particular project and session:
 
@@ -54,7 +54,7 @@ pnpm run build --config '{"bundle":{"createUpdaterArtifacts":false}}'
 pnpm run build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
-Bundles appear under `desktop/src-tauri/target/release/bundle/`. To generate
+Bundles appear under `crates/desktop/native/target/release/bundle/`. To generate
 signed update artifacts, set `TAURI_SIGNING_PRIVATE_KEY` to the release signing
 key and its optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, then run `pnpm run build`.
 The public key in `tauri.conf.json` must match. These update signatures are
@@ -241,11 +241,9 @@ cargo build                     # debug binary used by pnpm test
 Then:
 
 ```sh
-cargo fmt --manifest-path desktop/src-tauri/Cargo.toml --check
-cd desktop
+cd crates/desktop
 pnpm install --frozen-lockfile
 pnpm run prepare:runtime
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 pnpm test
 pnpm run test:e2e
 ```

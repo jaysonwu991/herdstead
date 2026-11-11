@@ -56,7 +56,7 @@ const assert = require('node:assert/strict');
         window: { getCurrentWindow: () => ({ startDragging() {} }) },
       };
     });
-    await page.goto(`file://${path.resolve(__dirname, '../src/index.html')}`);
+    await page.goto(`file://${path.resolve(__dirname, '../ui/index.html')}`);
     await page.locator('#connection-status').filter({ hasText: 'Connected' }).waitFor();
     assert.equal(await page.evaluate(() => [...document.fonts].some(face => face.family === 'Herdstead Mono' && face.status === 'loaded')), true, 'Bundled font loads before the PTY is sized');
     const fontProof = await page.evaluate(() => {
@@ -242,6 +242,36 @@ const assert = require('node:assert/strict');
     await page.locator('.pane.focused .pane-close').click();
     await page.waitForFunction(() => document.querySelectorAll('.pane').length === 2);
     await page.locator('#new-tab').click(); await page.waitForFunction(() => document.querySelectorAll('.tab').length === 2);
+    // Regression: renderChrome() used to tear down and rebuild every workspace/
+    // tab/agent button whenever the snapshot changed, which happens
+    // continuously while a terminal is actively working. A node replaced
+    // between mousedown and mouseup never receives its click, so the button
+    // needed a second try. Tag the live nodes, hold a press while a burst of
+    // chrome-affecting updates lands (as frequent agent/tab status changes
+    // would), then release: one click must still land. The new tab is active,
+    // so the race targets the first tab.
+    await page.evaluate(() => {
+      document.querySelector('#tabs .tab').dataset.regressionTag = 'kept';
+      document.querySelector('#workspaces .workspace').dataset.regressionTag = 'kept';
+    });
+    const firstTabBox = await page.locator('#tabs .tab').first().boundingBox();
+    const renameBurst = (async () => {
+      for (let i = 0; i < 30; i++) {
+        await run.request({ type: 'action', action: { type: 'rename_workspace', name: i % 2 === 0 ? 'busy' : 'project' } });
+      }
+    })();
+    await page.mouse.move(firstTabBox.x + firstTabBox.width / 2, firstTabBox.y + firstTabBox.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(150); // several chrome rebuilds land while the button is held down
+    await page.mouse.up();
+    await renameBurst;
+    await page.waitForFunction(() => document.querySelectorAll('#tabs .tab')[0]?.classList.contains('active'), null, { timeout: 2000 })
+      .catch(() => { throw new Error('Switching tabs needed a second click while the terminal was busy'); });
+    assert.equal(await page.evaluate(() => document.querySelectorAll('#tabs .tab')[1].classList.contains('active')), false, 'The second tab is deactivated after one click on the first');
+    assert.equal(await page.evaluate(() => document.querySelector('#tabs .tab').dataset.regressionTag), 'kept', 'Tab buttons are reused, not rebuilt, across frequent chrome updates');
+    assert.equal(await page.evaluate(() => document.querySelector('#workspaces .workspace').dataset.regressionTag), 'kept', 'Workspace buttons are reused, not rebuilt, across frequent chrome updates');
+    await page.locator('#tabs .tab').nth(1).click(); // restore the new tab as active for the steps below
+    await page.waitForFunction(() => document.querySelectorAll('.tab')[1]?.classList.contains('active'));
     await run.wait(event => { const p = event.snapshot.panes.find(p => p.id === event.snapshot.focused); const g = p?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable zsh prompt');
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input');
     await page.keyboard.type('cat @src/ma'); await page.keyboard.press('Tab');

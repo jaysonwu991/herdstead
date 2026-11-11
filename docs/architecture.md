@@ -213,7 +213,7 @@ Running processes and their output are not restored.
 
 ## The client
 
-`desktop/src` renders snapshots, translates keys and paste into semantic actions,
+`crates/desktop/ui` renders snapshots, translates keys and paste into semantic actions,
 and measures the terminal font to send cell geometry to the daemon. Viewer
 scroll, appearance, rich-output preference and file panel state stay local.
 `crates/app/src/viewer.rs` loads viewer files and uses the shared renderers.
@@ -226,7 +226,7 @@ The bundled runtime also provides ANSI shell commands from those same renderers.
 | unit tests in `core` | geometry, splits, closing, focus, resize, themes, config layering, binding syntax, mention parsing, link scanning |
 | unit tests in `render` | exact columns, links surviving wrapping, table alignment, image placeholders, code gutters, tree scanning, ANSI output |
 | `crates/app/tests/runtime.rs` | a real daemon: shell output, typed keys, splits, scrollback, viewer panes, kill, restart-restore, error frames |
-| `desktop/tests` | real daemon bridge, zsh integration, terminal rendering and browser E2E |
+| `crates/desktop/tests` | real daemon bridge, zsh integration, terminal rendering and browser E2E |
 | `scripts/test_desktop_release.py` | installer completeness, signed manifest assembly, checksums and version stamping |
 
 The end-to-end tests spawn the built binary and talk to it the way a user does,
@@ -235,8 +235,8 @@ rather than surfacing as a silent mis-render.
 
 ## Desktop client
 
-`desktop/` is the Tauri 2 application with an independent Cargo workspace
-in `desktop/src-tauri`. It embeds the static client from `desktop/src` in the
+`crates/desktop/native` is the Tauri 2 application, a member of the root Cargo
+workspace. It embeds the static client from `crates/desktop/ui` in the
 system webview and bundles the ordinary `herdstead` binary as a resource. The
 native host starts `herdstead desktop-bridge` with piped stdin/stdout. That process
 uses `client::connect_or_spawn` and the existing Unix socket protocol; the daemon
@@ -319,7 +319,7 @@ only and add no text or PTY columns. Alternate-screen applications are excluded.
 
 The release workflow builds the runtime and Tauri host for macOS arm64/x64 and
 Linux arm64/x64. `CARGO_BUILD_TARGET` keeps the bundled runtime on the same target
-as the app. Version stamping covers both Cargo manifests, the desktop package manifest and Tauri
+as the app. Version stamping covers the workspace Cargo manifest, the desktop package manifest and Tauri
 configuration. Native installers are DMGs, AppImages and Debian packages.
 `scripts/desktop-release.py` stages stable platform names and refuses to publish
 until every installer and updater signature exists. It assembles `latest.json`

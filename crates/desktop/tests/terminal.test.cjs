@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { keyInput, plain } = require('../src/terminal.js');
+const { keyInput, plain } = require('../ui/terminal.js');
 test('terminal keys preserve control modifiers and application cursor semantics', () => {
   assert.deepEqual(keyInput({ key: 'c', ctrlKey: true }).key, { char: 'c' });
   assert.equal(keyInput({ key: 'c', ctrlKey: true }).mods.ctrl, true);
@@ -17,7 +17,7 @@ test('copy output retains Unicode and row boundaries', () => {
 });
 
 test('link logos are selected locally without favicon requests', () => {
-  const { linkKind } = require('../src/terminal.js');
+  const { linkKind } = require('../ui/terminal.js');
   assert.equal(linkKind({ url: true, target: 'https://github.com/org/repo' }), 'github');
   assert.equal(linkKind({ url: true, target: 'https://example.com' }), 'web');
   assert.equal(linkKind({ url: true, target: 'mailto:hello@example.com' }), 'mail');

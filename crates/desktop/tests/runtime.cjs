@@ -14,7 +14,7 @@ function runtime(onEvent = () => {}, options = {}) {
   // Runner-wide zshrc files can prompt before the fixture's zshrc is read.
   fs.writeFileSync(path.join(root, 'zsh/.zshenv'), 'unsetopt GLOBAL_RCS\n');
   fs.writeFileSync(path.join(root, 'zsh/.zshrc'), options.zshrc || `PROMPT='HS> '\n`);
-  const binary = process.env.HERDSTEAD_BIN || path.resolve(__dirname, '../../target/debug/herdstead');
+  const binary = process.env.HERDSTEAD_BIN || path.resolve(__dirname, '../../../target/debug/herdstead');
   assert.ok(fs.existsSync(binary), 'Build the Herdstead runtime with cargo build first');
   const cwd = path.join(root, 'project');
   const env = { ...process.env, HERDSTEAD_CONFIG_DIR: path.join(root, 'config'), HERDSTEAD_STATE_DIR: path.join(root, 'state'), HERDSTEAD_RUNTIME_DIR: path.join(root, 'run'), HERDSTEAD_CWD: cwd, HERDSTEAD_SESSION: 'desktop-test', HERDSTEAD_BIN: binary, ZDOTDIR: path.join(root, 'zsh'), HERDSTEAD_SHELL_INTEGRATION: options.integration ? '1' : '' };

@@ -2,11 +2,11 @@ target/
 .DS_Store
 *.log
 .herdstead/
-desktop/node_modules/
-desktop/dist/
-desktop/test-results/
-desktop/src-tauri/target/
-desktop/src-tauri/binaries/
-desktop/src-tauri/gen/
+crates/desktop/node_modules/
+crates/desktop/dist/
+crates/desktop/test-results/
+crates/desktop/native/target/
+crates/desktop/native/binaries/
+crates/desktop/native/gen/
 
 __pycache__/

@@ -61,7 +61,7 @@ Linux also needs zsh for the rich shell integration.
 
 ```sh
 git clone https://github.com/jaysonwu991/herdstead.git
-cd herdstead/desktop
+cd herdstead/crates/desktop
 pnpm install --frozen-lockfile
 pnpm run dev
 # Local app, without signed updater artifacts:

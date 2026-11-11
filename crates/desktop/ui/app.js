@@ -10,6 +10,7 @@ const state = {
   expanded: new Set(), paletteIndex: 0, commands: [], cell: { width: 8.4, height: 21 },
   dimensions: '', renderPending: false, directoryGeneration: 0, viewerCache: new Map(),
   zoom: clampZoom(Number(localStorage.getItem('zoom')) || 1),
+  workspaceNodes: new Map(), tabNodes: new Map(), agentNodes: new Map(),
 };
 let actionQueue = Promise.resolve();
 const action = value => {
@@ -41,6 +42,27 @@ function el(tag, className, text) {
   if (text !== undefined) node.textContent = text; return node;
 }
 function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
+// Rebuilds a button list by stable key instead of tearing it down: a node a
+// pointer is mid-click on survives a snapshot update that changes something
+// else, so clicks never need a second try while the terminal is busy. Moving
+// a node that is already correctly placed would itself detach and reattach
+// it, which is enough to drop an in-flight click, so it is only repositioned
+// when the order actually changed.
+function syncList(container, items, keyFn, cache, buildFn, updateFn) {
+  const seen = new Set();
+  let previous = null;
+  for (const item of items) {
+    const key = keyFn(item);
+    seen.add(key);
+    let node = cache.get(key);
+    if (!node) { node = buildFn(item); cache.set(key, node); }
+    updateFn(node, item);
+    const inPlace = previous ? node.previousElementSibling === previous : node === container.firstElementChild;
+    if (!inPlace) { if (previous) previous.after(node); else container.prepend(node); }
+    previous = node;
+  }
+  for (const [key, node] of cache) if (!seen.has(key)) { node.remove(); cache.delete(key); }
+}
 function uiIcon(kind) {
   const paths = {
     right: 'M4 5h16v14H4z M12 5v14',
@@ -155,35 +177,65 @@ function renderChrome() {
   if (!snap || !ws) return;
   $('#session-name').textContent = snap.session === ws.name ? workspaceName(ws) : snap.session;
   $('#dimensions').textContent = focused()?.grid ? `${focused().grid.cols} × ${focused().grid.rows} · UTF-8` : 'Rich viewer';
-  const workspaces = $('#workspaces'); workspaces.replaceChildren();
-  snap.workspaces.forEach((item, index) => {
-    const node = button('', item.dir, () => action({ type: 'select_workspace', index }), `workspace ${index === snap.active_workspace ? 'active' : ''}`);
-    const name = workspaceName(item);
-    node.append(el('span', 'initial', name.slice(0, 1).toUpperCase()), el('span', 'name', name), el('span', 'dot'));
-    node.lastChild.style.background = colorStatus(item.status); workspaces.append(node);
+  // Each node keeps its current index/target in a dataset attribute, read at
+  // click time: the handler closes over the stable `node`, not a snapshot
+  // object that a later render replaces.
+  syncList($('#workspaces'), snap.workspaces, item => item.id, state.workspaceNodes, () => {
+    let node;
+    node = button('', '', () => action({ type: 'select_workspace', index: Number(node.dataset.index) }), 'workspace');
+    node.append(el('span', 'initial'), el('span', 'name'), el('span', 'dot'));
+    return node;
+  }, (node, item) => {
+    const index = snap.workspaces.indexOf(item), name = workspaceName(item);
+    node.dataset.index = index;
+    node.title = item.dir;
+    node.className = `workspace ${index === snap.active_workspace ? 'active' : ''}`;
+    setText(node.querySelector('.initial'), name.slice(0, 1).toUpperCase());
+    setText(node.querySelector('.name'), name);
+    node.querySelector('.dot').style.background = colorStatus(item.status);
   });
-  const tabs = $('#tabs'); tabs.replaceChildren();
-  ws.tabs.forEach((tab, index) => {
-    const node = button('', `Switch to ${tab.name}`, () => action({ type: 'select_tab', index }), `tab ${index === ws.active_tab ? 'active' : ''}`);
-    const close = el('span', 'close-tab', '×'); close.title = `Close ${tab.name}`;
+  syncList($('#tabs'), ws.tabs, tab => tab.id, state.tabNodes, () => {
+    let node;
+    node = button('', '', () => action({ type: 'select_tab', index: Number(node.dataset.index) }), 'tab');
+    const close = el('span', 'close-tab', '×');
     close.addEventListener('click', safely(async event => {
       event.stopPropagation();
+      const index = Number(node.dataset.index);
       await action({ type: 'select_tab', index }); await action({ type: 'close_tab' }); terminalFocus();
     }));
-    node.append(el('span', '', '❯_'), el('span', '', tab.name), close); tabs.append(node);
+    node.append(el('span', '', '❯_'), el('span', 'name'), close);
+    return node;
+  }, (node, tab) => {
+    const index = ws.tabs.indexOf(tab);
+    node.dataset.index = index;
+    node.title = `Switch to ${tab.name}`;
+    node.className = `tab ${index === ws.active_tab ? 'active' : ''}`;
+    setText(node.querySelector('.name'), tab.name);
+    node.querySelector('.close-tab').title = `Close ${tab.name}`;
   });
   const agents = snap.workspaces.flatMap((item, index) => item.tabs.filter(tab => tab.agent).map(tab => ({ ...tab, agent: agentLabel(tab.agent), workspaceIndex: index, workspaceName: workspaceName(item), tabIndex: item.tabs.indexOf(tab) })));
   $('#agent-count').textContent = agents.length;
-  $('#agents').replaceChildren();
-  if (!agents.length) $('#agents').append(el('p', 'empty', 'Agents appear here when they start working in a terminal. Your herd keeps running when you close the window.'));
-  agents.forEach(agent => {
-    const node = button('', `Open ${agent.agent}`, async () => {
-      await action({ type: 'select_workspace', index: agent.workspaceIndex });
-      await action({ type: 'select_tab', index: agent.tabIndex });
+  const agentsList = $('#agents');
+  let empty = agentsList.querySelector('.empty');
+  if (!agents.length) {
+    if (!empty) { empty = el('p', 'empty', 'Agents appear here when they start working in a terminal. Your herd keeps running when you close the window.'); agentsList.append(empty); }
+  } else empty?.remove();
+  syncList(agentsList, agents, agent => agent.id, state.agentNodes, () => {
+    let node;
+    node = button('', '', async () => {
+      await action({ type: 'select_workspace', index: Number(node.dataset.workspaceIndex) });
+      await action({ type: 'select_tab', index: Number(node.dataset.tabIndex) });
     }, 'agent');
-    const info = el('span', 'agent-info'); info.append(el('strong', '', agent.agent), el('small', '', `${agent.workspaceName} · ${agent.status}`));
+    const info = el('span', 'agent-info'); info.append(el('strong'), el('small'));
     node.append(el('span', 'agent-icon', '✳'), info, el('span', 'dot'));
-    node.lastChild.style.background = colorStatus(agent.status); $('#agents').append(node);
+    return node;
+  }, (node, agent) => {
+    node.dataset.workspaceIndex = agent.workspaceIndex;
+    node.dataset.tabIndex = agent.tabIndex;
+    node.title = `Open ${agent.agent}`;
+    setText(node.querySelector('strong'), agent.agent);
+    setText(node.querySelector('small'), `${agent.workspaceName} · ${agent.status}`);
+    node.querySelector('.dot').style.background = colorStatus(agent.status);
   });
   if (state.fileRoot !== ws.dir) {
     state.fileRoot = ws.dir; state.expanded.clear(); state.directoryCache.clear();
