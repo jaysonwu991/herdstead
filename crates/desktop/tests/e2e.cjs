@@ -331,6 +331,20 @@ const assert = require('node:assert/strict');
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => !document.querySelector('#palette').open);
     assert.equal(fullscreenCalls, 1, 'The full-screen command reaches the native window');
+    // One press on a space must switch space, with no second try: the press is
+    // what acts, so a release the webview or a drag region drops cannot lose it.
+    await run.request({ type: 'action', action: { type: 'new_workspace', dir: path.join(run.root, 'project') } });
+    await page.waitForFunction(() => document.querySelectorAll('#workspaces .workspace').length === 2);
+    const firstSpace = await page.locator('#workspaces .workspace').first().boundingBox();
+    await page.mouse.move(firstSpace.x + firstSpace.width / 2, firstSpace.y + firstSpace.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(120);
+    await page.mouse.up();
+    await page.waitForFunction(() => document.querySelectorAll('#workspaces .workspace')[0]?.classList.contains('active'), null, { timeout: 2000 })
+      .catch(() => { throw new Error('Switching spaces needed a second click'); });
+    await run.wait(event => event.snapshot.active_workspace === 0, 'space switched on one press');
+    await run.request({ type: 'action', action: { type: 'select_workspace', index: 1 } });
+    await page.waitForFunction(() => document.querySelectorAll('#workspaces .workspace')[1]?.classList.contains('active'));
     await page.setViewportSize({ width: 1100, height: 740 });
     await page.waitForTimeout(300);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
@@ -339,6 +353,6 @@ const assert = require('node:assert/strict');
     fs.mkdirSync(path.resolve(__dirname, '../test-results'), { recursive: true });
     await page.screenshot({ path: path.resolve(__dirname, '../test-results/desktop.png') });
     assert.deepEqual(failures, []);
-    console.log('Desktop E2E passed: real PTY input, splits, tabs, one-click focus, shell input Markdown and link logos, shell completion, files, inline Markdown, @path, themes, palette, zoom, full screen and resize.');
+    console.log('Desktop E2E passed: real PTY input, splits, tabs, one-press spaces and focus, shell input Markdown and link logos, shell completion, files, inline Markdown, @path, themes, palette, zoom, full screen and resize.');
   } finally { await browser.close(); await run.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
