@@ -8,7 +8,7 @@ Linux rich shell tests require zsh. Windows is not supported by the Unix runtime
 
 ```sh
 cargo build
-cd desktop
+cd crates/desktop
 pnpm install --frozen-lockfile
 pnpm run dev
 ```
@@ -25,11 +25,9 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 python3 -m unittest discover -s scripts -p 'test_*.py'
 cargo build
-cd desktop
+cd crates/desktop
 pnpm install --frozen-lockfile
 pnpm run prepare:runtime
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 pnpm test
 pnpm run test:e2e
 ```
@@ -45,7 +43,7 @@ test session, use all three fixture directory overrides described in [AGENTS.md]
 provides pure styled-row renderers plus explicit file/tree IO helpers.
 `crates/app/src/server` owns daemon facts; `desktop.rs` provides JSON transport;
 `viewer.rs` reads viewer files; `cli.rs` provides bundled shell commands.
-`desktop/src-tauri` is the native host and `desktop/src` the webview UI.
+`crates/desktop/native` is the native host and `crates/desktop/ui` the webview UI.
 
 Keep presentation out of the daemon and terminal dependencies out of core/render.
 Viewer and shell output must use the same renderer. Protocol changes require
@@ -63,15 +61,16 @@ must point to code containing the desktop workflow. GitHub's default workflow
 token does not trigger other workflows when it creates a tag/release; use manual
 dispatch when publishing through such automation.
 
-`scripts/set-version.sh v1.2.3` stamps the root runtime, native Cargo package,
-Tauri config and desktop package manifest. CI refreshes both Cargo locks after stamping.
+`scripts/set-version.sh v1.2.3` stamps the root runtime, Tauri config and
+desktop package manifest; the native Cargo package inherits the workspace
+version. CI refreshes the Cargo lock after stamping.
 Native builds produce macOS arm64/x64 DMGs and updater app archives, and Linux
 arm64/x64 AppImages and Debian packages. Linux ARM uses a native ARM runner.
 The bundled runtime is built for the app's exact target.
 
 Release CI requires `TAURI_SIGNING_PRIVATE_KEY` in repository Actions secrets,
 and optionally `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Its public key is committed
-in `desktop/src-tauri/tauri.conf.json`. Keep the private key safe: replacing it
+in `crates/desktop/native/tauri.conf.json`. Keep the private key safe: replacing it
 breaks updates for existing installations. These signatures verify updater
 artifacts; Apple code signing/notarisation requires separate credentials and is
 not currently configured.

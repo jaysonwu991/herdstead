@@ -16,7 +16,8 @@ Three crates:
 - `crates/render` — Markdown, syntax highlighting, trees, links, composer, ANSI.
   Drawing is pure; file helpers and tree scanning perform IO.
 - `crates/app` — daemon, desktop JSON bridge, viewers and bundled shell helpers.
-- `desktop/` — Tauri native host and webview UI (separate Cargo workspace).
+- `crates/desktop/native` — Tauri native host, workspace member.
+- `crates/desktop/ui` — webview UI (plain HTML/CSS/JS, no build step).
 
 ## Invariants
 
@@ -47,7 +48,7 @@ cargo test --workspace
 ```
 
 `crates/app/tests/runtime.rs` starts real daemons over a Unix socket in a
-temporary state directory; `desktop/tests` drives the bridge, real zsh PTYs
+temporary state directory; `crates/desktop/tests` drives the bridge, real zsh PTYs
 and browser UI.
 They need no display and clean up after
 themselves, but an interrupted run can leave a session behind. To inspect or

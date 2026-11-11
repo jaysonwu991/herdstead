@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm run prepare:runtime",
     "beforeBuildCommand": "pnpm run prepare:runtime",
-    "frontendDist": "../src"
+    "frontendDist": "../ui"
   },
   "app": {
     "withGlobalTauri": true,
@@ -20,7 +20,8 @@
         "minHeight": 600,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "backgroundColor": "#0e1117"
+        "backgroundColor": "#0e1117",
+        "acceptFirstMouse": true
       }
     ],
     "security": {

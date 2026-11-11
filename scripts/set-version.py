@@ -9,7 +9,7 @@ version = sys.argv[1].removeprefix("v") if len(sys.argv) == 2 else ""
 if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?", version):
     sys.exit("usage: scripts/set-version.sh v1.2.3 (optional prerelease suffix)")
 root = Path(__file__).resolve().parent.parent
-for name, section in [("Cargo.toml", "workspace.package"), ("desktop/src-tauri/Cargo.toml", "package")]:
+for name, section in [("Cargo.toml", "workspace.package")]:
     path = root / name
     text = path.read_text()
     pattern = r'(\[' + re.escape(section) + r'\][^\[]*?^version\s*=\s*)"[^"]+"'
@@ -17,7 +17,7 @@ for name, section in [("Cargo.toml", "workspace.package"), ("desktop/src-tauri/C
     if count != 1:
         sys.exit(f"missing version in {name}")
     path.write_text(text)
-for name in ["desktop/package.json", "desktop/src-tauri/tauri.conf.json"]:
+for name in ["crates/desktop/package.json", "crates/desktop/native/tauri.conf.json"]:
     path = root / name
     data = json.loads(path.read_text())
     data["version"] = version
