@@ -41,6 +41,15 @@ function el(tag, className, text) {
   const node = document.createElement(tag); if (className) node.className = className;
   if (text !== undefined) node.textContent = text; return node;
 }
+// Wraps the filter's matched substring in <mark> so a hit is visible, not just present.
+function fileNameNode(name, filter) {
+  const node = el('span', 'file-name');
+  if (!filter) { node.textContent = name; return node; }
+  const index = name.toLowerCase().indexOf(filter);
+  if (index === -1) { node.textContent = name; return node; }
+  node.append(name.slice(0, index), el('mark', '', name.slice(index, index + filter.length)), name.slice(index + filter.length));
+  return node;
+}
 function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
 // Rebuilds a button list by stable key instead of tearing it down: a node a
 // pointer is mid-click on survives a snapshot update that changes something
@@ -430,7 +439,7 @@ function renderFiles() {
       icon.append(uiIcon(entry.directory ? (state.expanded.has(entry.path) ? 'chevronDown' : 'chevronRight') : 'file'));
       if (entry.directory) icon.append(uiIcon('folder'));
       if (entry.directory) node.setAttribute('aria-expanded', state.expanded.has(entry.path));
-      node.append(icon, el('span', 'file-name', entry.name));
+      node.append(icon, fileNameNode(entry.name, filter));
       if (!entry.directory && entry.name.includes('.')) node.append(el('span', 'extension', entry.name.split('.').pop().toUpperCase()));
       root.append(node);
       if (entry.directory && state.expanded.has(entry.path)) append(state.directoryCache.get(entry.path) || [], depth + 1);
