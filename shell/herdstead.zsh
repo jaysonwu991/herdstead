@@ -106,6 +106,12 @@ _herdstead_suggestions() {
     query=${(Q)match[2]}
     [[ $query == '~/'* ]] && query=$HOME/${query#\~/}
     matches=( ${query}*(NY8) )
+    # A bare name with no directory in it may live several levels down (a
+    # Java source tree, say), so fall back to a bounded recursive search
+    # rather than only ever looking in the current directory.
+    if [[ -z $matches && $query != */* && -n $query ]]; then
+      matches=( **/${query}*(NY8) )
+    fi
     matches=( ${(on)matches} )
     for entry in $matches; do
       [[ -d $entry ]] && entry+=/
