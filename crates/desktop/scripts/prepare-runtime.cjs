@@ -2,7 +2,10 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../../..');
-const args = ['build', '--release', '--locked', '--manifest-path', path.join(root, 'Cargo.toml')];
+// Only the daemon binary is needed here; building the whole workspace would
+// also try to build herdstead-desktop itself, whose own build.rs requires
+// this binary to already be copied into its `binaries/` resource folder.
+const args = ['build', '--release', '--locked', '--manifest-path', path.join(root, 'Cargo.toml'), '-p', 'herdstead'];
 if (process.env.CARGO_BUILD_TARGET) args.push('--target', process.env.CARGO_BUILD_TARGET);
 execFileSync(process.env.CARGO || 'cargo', args, { stdio: 'inherit', cwd: root });
 const targetDir = process.env.CARGO_TARGET_DIR || path.join(root, 'target');
