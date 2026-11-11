@@ -54,7 +54,7 @@ pnpm run build --config '{"bundle":{"createUpdaterArtifacts":false}}'
 pnpm run build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
-Bundles appear under `crates/desktop/native/target/release/bundle/`. To generate
+Bundles appear under `target/release/bundle/` at the workspace root. To generate
 signed update artifacts, set `TAURI_SIGNING_PRIVATE_KEY` to the release signing
 key and its optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, then run `pnpm run build`.
 The public key in `tauri.conf.json` must match. These update signatures are
