@@ -26,16 +26,40 @@ async function request(message) {
 // Event handlers report errors once, without leaking unhandled rejections.
 function safely(fn) { return (...args) => { try { return Promise.resolve(fn(...args)).catch(() => {}); } catch (error) { showError(error.message); } }; }
 function on(selector, name, fn) {
-  const node = $(selector);
-  node.addEventListener(name, safely(async (...args) => {
-    await fn(...args);
-    if (name === 'click' && node.tagName === 'BUTTON') restoreTerminalFocus();
-  }));
+  $(selector).addEventListener(name, safely(async (...args) => { await fn(...args); }));
 }
+// A press acts straight away instead of waiting for the release, so a click that
+// a drag region, a re-render or the webview drops still lands on the first
+// press. The click that follows a press is ignored, keeping toggles to one
+// action; keyboard activation has no press, so its click still runs. `repeat`
+// re-runs a handler on the click, for openers whose focus the press can lose to
+// the browser's own mousedown default.
+function press(node, fn, { repeat = false } = {}) {
+  let pressed = 0, release = null;
+  const run = safely(fn);
+  const drop = () => { if (release) node.removeEventListener('pointerup', release); release = null; };
+  node.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || event.ctrlKey) return;
+    pressed = performance.now();
+    run(event);
+    // Give the caret back on release even when no click follows the press.
+    drop();
+    release = () => { drop(); restoreTerminalFocus(); };
+    node.addEventListener('pointerup', release);
+  });
+  node.addEventListener('pointercancel', drop);
+  node.addEventListener('click', safely(async event => {
+    drop();
+    if (repeat || performance.now() - pressed > 600) await run(event);
+    restoreTerminalFocus();
+  }));
+  return node;
+}
+function onPress(selector, fn, options) { press($(selector), fn, options); }
 function button(text, title, fn, className = '') {
   const node = document.createElement('button');
   node.textContent = text; node.title = title; node.className = className;
-  node.addEventListener('click', safely(async event => { await fn(event); restoreTerminalFocus(); })); return node;
+  return press(node, event => fn(event));
 }
 function el(tag, className, text) {
   const node = document.createElement(tag); if (className) node.className = className;
@@ -87,6 +111,7 @@ function uiIcon(kind) {
     refresh: 'M20 8a9 9 0 1 0 1 7 M20 3v6h-6',
     sparkle: 'M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z',
     computer: 'M3 4h18v13H3z M8 21h8 M12 17v4',
+    command: 'M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z',
     folder: 'M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2.4 3h8.1A1.5 1.5 0 0 1 21 10.5v7A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z M3 10h18',
   };
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -121,7 +146,7 @@ document.addEventListener('focusin', updateInputFocus);
 document.addEventListener('focusout', () => queueMicrotask(updateInputFocus));
 window.addEventListener('blur', updateInputFocus);
 window.addEventListener('focus', () => { restoreTerminalFocus(); updateInputFocus(); });
-function colorStatus(status) { return status === 'working' ? 'var(--accent)' : status === 'error' ? 'var(--error)' : 'var(--success)'; }
+function colorStatus(status) { return status === 'blocked' ? 'var(--warning)' : status === 'exited' ? 'var(--error)' : status === 'idle' ? 'var(--faint)' : 'var(--accent)'; }
 function applyPalette(palette) {
   for (const [slot, value] of Object.entries(palette)) document.documentElement.style.setProperty(`--${slot}`, value);
   document.documentElement.style.colorScheme = Number.parseInt(palette.bg.slice(1, 3), 16) > 170 ? 'light' : 'dark';
@@ -189,6 +214,7 @@ function renderChrome() {
   // Each node keeps its current index/target in a dataset attribute, read at
   // click time: the handler closes over the stable `node`, not a snapshot
   // object that a later render replaces.
+  setText($('#space-count'), String(snap.workspaces.length));
   syncList($('#workspaces'), snap.workspaces, item => item.id, state.workspaceNodes, () => {
     let node;
     node = button('', '', () => action({ type: 'select_workspace', index: Number(node.dataset.index) }), 'workspace');
@@ -197,6 +223,7 @@ function renderChrome() {
   }, (node, item) => {
     const index = snap.workspaces.indexOf(item), name = workspaceName(item);
     node.dataset.index = index;
+    node.dataset.status = item.status || 'idle';
     node.title = item.dir;
     node.className = `workspace ${index === snap.active_workspace ? 'active' : ''}`;
     setText(node.querySelector('.initial'), name.slice(0, 1).toUpperCase());
@@ -212,7 +239,7 @@ function renderChrome() {
       const index = Number(node.dataset.index);
       await action({ type: 'select_tab', index }); await action({ type: 'close_tab' }); terminalFocus();
     }));
-    node.append(el('span', '', '❯_'), el('span', 'name'), close);
+    node.append(el('span', 'prompt', '❯_'), el('span', 'name'), close);
     return node;
   }, (node, tab) => {
     const index = ws.tabs.indexOf(tab);
@@ -518,9 +545,9 @@ function renderCommands() {
 }
 async function rename(kind) {
   // A dedicated dialog keeps native terminal input outside browser prompt APIs.
-  const dialog = el('dialog'), form = el('form'); form.method = 'dialog'; form.style.padding = '24px';
+  const dialog = el('dialog'), form = el('form', 'rename'); form.method = 'dialog';
   const label = el('label', '', `Rename ${kind} `), input = el('input'); input.value = kind === 'tab' ? workspace().tabs[workspace().active_tab].name : workspace().name;
-  input.style.borderBottom = '1px solid var(--border)'; label.append(input); form.append(label);
+  label.append(input); form.append(label);
   const submit = el('button', 'primary', 'Rename'); submit.type = 'submit'; form.append(submit); dialog.append(form); document.body.append(dialog);
   dialog.addEventListener('close', safely(async () => { const name = input.value.trim(); if (dialog.returnValue !== 'cancel' && name) await action({ type: `rename_${kind}`, name }); dialog.remove(); }));
   dialog.addEventListener('cancel', () => { dialog.returnValue = 'cancel'; });
@@ -588,17 +615,18 @@ document.addEventListener('keydown', safely(async event => {
   if (/^[1-9]$/.test(key)) { event.preventDefault(); event.stopPropagation(); await action({ type: 'select_tab', index: Number(key) - 1 }); return; }
   if (shortcuts[key]) { event.preventDefault(); event.stopPropagation(); await shortcuts[key](); }
 }), true);
-on('#palette-button', 'click', palette); on('#status-commands', 'click', palette);
-on('#new-tab', 'click', () => action({ type: 'new_tab' })); on('#add-workspace', 'click', addWorkspace);
-on('#files-button', 'click', toggleFiles); on('#refresh-files', 'click', () => { state.directoryCache.clear(); state.expanded.clear(); return loadFiles(); });
-on('#file-filter', 'input', renderFiles); on('#rich-output-button', 'click', toggleRich);
-on('#find-button', 'click', openFind); on('#find-input', 'input', find); on('#find-close', 'click', closeFind);
-on('#settings-button', 'click', settings); on('#close-settings', 'click', () => $('#settings').close());
+// Openers re-run on the click so the input they focus keeps the caret.
+onPress('#palette-button', palette, { repeat: true }); onPress('#status-commands', palette, { repeat: true });
+onPress('#new-tab', () => action({ type: 'new_tab' })); onPress('#add-workspace', addWorkspace);
+onPress('#files-button', toggleFiles); onPress('#refresh-files', () => { state.directoryCache.clear(); state.expanded.clear(); return loadFiles(); });
+on('#file-filter', 'input', renderFiles); onPress('#rich-output-button', toggleRich);
+onPress('#find-button', openFind, { repeat: true }); on('#find-input', 'input', find); onPress('#find-close', closeFind);
+onPress('#settings-button', settings, { repeat: true }); onPress('#close-settings', () => $('#settings').close());
 for (const dialog of ['#palette', '#settings']) on(dialog, 'close', restoreTerminalFocus);
 on('#theme-select', 'change', event => setTheme(event.target.value));
 on('#font-family', 'change', event => { state.fontFamily = event.target.value; localStorage.setItem('fontFamily', state.fontFamily); fontSize(); });
-on('#font-smaller', 'click', () => fontSize(-1)); on('#font-larger', 'click', () => fontSize(1));
-on('#reconnect', 'click', () => api.reconnect()); on('#dismiss-banner', 'click', () => { $('#banner').hidden = true; });
+onPress('#font-smaller', () => fontSize(-1)); onPress('#font-larger', () => fontSize(1));
+onPress('#reconnect', () => api.reconnect()); onPress('#dismiss-banner', () => { $('#banner').hidden = true; });
 on('#command-input', 'input', () => { state.paletteIndex = 0; renderCommands(); });
 on('#command-input', 'keydown', async event => {
   if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
@@ -644,8 +672,8 @@ async function checkUpdate() {
     $('#update-status').textContent = `Cannot check for updates: ${error.message || error}`;
   } finally { button.disabled = false; }
 }
-on('#check-update', 'click', checkUpdate);
-on('#install-update', 'click', async () => {
+onPress('#check-update', checkUpdate);
+onPress('#install-update', async () => {
   $('#install-update').disabled = true;
   $('#check-update').disabled = true;
   $('#update-status').textContent = 'Downloading and installing update…';

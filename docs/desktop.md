@@ -205,9 +205,16 @@ Each pane header has **split right**, **split down**, **zoom/restore** and
 **close** controls. They focus and act on that pane, including when another pane
 was previously focused.
 
-Dragging the header moves the window. Double-clicking the header (the sidebar
-brand or the tab strip) maximises or restores it, the same title-bar behaviour
-as Oxide.
+Controls act on the press, not the release: a space, tab, file, pane control or
+palette command answers the first click, including while terminal output is
+streaming. The space list sits below the title bar, fills the active space, and
+marks a space only when a pane is waiting on a person or has exited.
+
+Dragging the header moves the window. Double-clicking the header (the sidebar's
+title strip or the tab strip) maximises or restores it, the same title-bar
+behaviour as Oxide. The traffic lights keep the strip at the top of the sidebar;
+the brand and its find and command buttons sit on the next line, level with each
+pane header.
 
 Drag between panes to resize. Scroll over a shell to move through daemon
 scrollback, and click its scroll offset to return to live output. Viewer panes
