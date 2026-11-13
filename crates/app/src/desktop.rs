@@ -15,7 +15,7 @@ use herdstead_core::protocol::{
     encode_line, Action, CursorPos, Event, PaneFrame, Request, MAX_FRAME_BYTES,
 };
 use herdstead_core::Theme;
-use herdstead_render::{link, markdown, term, Line, Span, Style};
+use herdstead_render::{markdown, term, Line, Span, Style};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -259,8 +259,13 @@ fn directory(path: &Path, config: &Config) -> Result<Value> {
             continue;
         }
         // A symlink is navigable, but never followed recursively by this scan.
-        entries
-            .push(json!({"name": name, "path": entry.path(), "directory": entry.path().is_dir()}));
+        let symlink = entry.file_type()?.is_symlink();
+        entries.push(json!({
+            "name": name,
+            "path": entry.path(),
+            "directory": entry.path().is_dir(),
+            "symlink": symlink
+        }));
     }
     entries.sort_by(|a, b| {
         b["directory"]
@@ -331,19 +336,14 @@ pub fn run(
                                     } else {
                                         term::term_lines(grid, &theme)
                                     };
-                                let base = Path::new(&pane.cwd);
-                                term::decorate_input(grid, &mut lines, &theme, links, &|path| {
-                                    base.join(path).exists()
-                                });
                                 if links {
-                                    lines = lines
-                                        .iter()
-                                        .map(|line| {
-                                            link::decorate(line, &theme, &|path| {
-                                                base.join(path).exists()
-                                            })
-                                        })
-                                        .collect();
+                                    let base = Path::new(&pane.cwd);
+                                    term::decorate_output_links(
+                                        grid,
+                                        &mut lines,
+                                        &theme,
+                                        &|path| base.join(path).exists(),
+                                    );
                                 }
                                 (pane.id.0.to_string(), rows(lines, grid.cursor))
                             })

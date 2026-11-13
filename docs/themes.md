@@ -103,7 +103,7 @@ default.
 |---|---|
 | `success` | completed tasks, executable files, "done" |
 | `warning` | blocked panes, scroll indicators |
-| `error` | exited panes, missing `@path` references, failures |
+| `error` | exited panes and failures |
 | `info` | agent glyphs and agent names |
 
 ### Content
@@ -112,7 +112,7 @@ default.
 |---|---|
 | `heading` | Markdown headings and their bars |
 | `link` | URLs |
-| `mention` | `@path` references that exist |
+| `mention` | `@path` references in formatted output |
 | `path` | file paths in output |
 | `inline_code_fg`, `code_bg` | inline code and fenced blocks |
 | `code_border` | the rail beside a code block or file |

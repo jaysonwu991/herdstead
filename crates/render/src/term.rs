@@ -25,70 +25,39 @@ pub fn term_lines(frame: &GridFrame, theme: &Theme) -> Vec<Line> {
         .collect()
 }
 
-/// Decorate the editable logical line while retaining its terminal columns,
-/// including references whose text crosses a soft wrap.
-pub fn decorate_input(
+/// Decorate output links without changing the editable logical line.
+pub fn decorate_output_links(
     frame: &GridFrame,
     lines: &mut [Line],
     theme: &Theme,
-    links: bool,
     resolve: &dyn Fn(&str) -> bool,
 ) {
-    let Some(cursor) = frame
+    let input = live_input_rows(frame);
+    for (row, line) in lines.iter_mut().enumerate() {
+        if input.as_ref().is_some_and(|rows| rows.contains(&row)) {
+            continue;
+        }
+        *line = crate::link::decorate(line, theme, resolve);
+    }
+}
+
+fn live_input_rows(frame: &GridFrame) -> Option<std::ops::RangeInclusive<usize>> {
+    let cursor = frame
         .cursor
-        .filter(|_| !frame.alt_screen && frame.offset == 0)
-    else {
-        return;
-    };
+        .filter(|_| !frame.alt_screen && frame.offset == 0)?;
     let cursor = usize::from(cursor.row);
-    if cursor >= lines.len() || lines.len() != frame.lines.len() || frame.cols == 0 {
-        return;
+    if cursor >= frame.lines.len() {
+        return None;
     }
     let mut first = cursor;
     while first > 0 && frame.lines[first - 1].wrapped {
         first -= 1;
     }
     let mut last = cursor;
-    while last + 1 < lines.len() && frame.lines[last].wrapped {
+    while last + 1 < frame.lines.len() && frame.lines[last].wrapped {
         last += 1;
     }
-    let mut combined = Line::new();
-    for (row, original) in lines.iter().enumerate().take(last + 1).skip(first) {
-        let mut line = original.clone();
-        if frame.lines[row].wrapped {
-            line.padded(usize::from(frame.cols), Style::plain());
-        }
-        combined.extend(line.spans);
-    }
-    let mut styled = crate::input::decorate(&combined, theme, links, resolve);
-    if links {
-        styled = crate::link::decorate(&styled, theme, resolve);
-    }
-    let mut rows = vec![Line::new(); last - first + 1];
-    let mut row = 0;
-    let mut column = 0;
-    for span in styled.spans {
-        for ch in span.text.chars() {
-            let width = herdstead_core::text::char_width(ch);
-            if column + width > usize::from(frame.cols) {
-                row += 1;
-                column = 0;
-            }
-            let Some(target) = rows.get_mut(row) else {
-                break;
-            };
-            target.push(Span {
-                text: ch.to_string(),
-                style: span.style,
-                link: span.link.clone(),
-            });
-            column += width;
-        }
-    }
-    for (target, mut line) in lines[first..=last].iter_mut().zip(rows) {
-        trim_trailing_space(&mut line);
-        *target = line;
-    }
+    Some(first..=last)
 }
 
 /// Rich ordinary output without changing terminal row coordinates. The live
@@ -258,7 +227,7 @@ mod tests {
     use herdstead_core::protocol::{StyledLine, StyledRun, TermColor, TermStyle};
 
     #[test]
-    fn input_markdown_and_links_survive_soft_wraps_without_moving_cells() {
+    fn editable_input_keeps_the_terminal_rendering_across_soft_wraps() {
         let source = ["echo **bo", "ld** www.", "site.com"];
         let mut frame = GridFrame::plain(
             3,
@@ -274,28 +243,43 @@ mod tests {
         );
         frame.cursor = Some(herdstead_core::protocol::CursorPos { row: 2, col: 8 });
         let theme = Theme::midnight();
-        let mut rows = term_lines(&frame, &theme);
-        decorate_input(&frame, &mut rows, &theme, true, &|_| false);
-        assert_eq!(
-            rows.iter().map(Line::text).collect::<String>(),
-            source.concat()
+        let expected = term_lines(&frame, &theme);
+        let mut rows = expected.clone();
+        decorate_output_links(&frame, &mut rows, &theme, &|_| false);
+        assert_eq!(rows, expected);
+        assert!(rows.iter().all(|line| line.links().is_empty()));
+        assert!(rows
+            .iter()
+            .flat_map(|line| &line.spans)
+            .all(|span| !span.style.bold));
+    }
+
+    #[test]
+    fn output_links_stay_clickable_while_the_live_input_does_not() {
+        let mut frame = GridFrame::plain(
+            2,
+            40,
+            vec![
+                StyledLine {
+                    runs: vec![run("see https://output.example", TermStyle::default())],
+                    wrapped: false,
+                },
+                StyledLine {
+                    runs: vec![run("echo https://input.example", TermStyle::default())],
+                    wrapped: false,
+                },
+            ],
         );
-        assert!(rows[0]
-            .spans
-            .iter()
-            .any(|span| span.text == "bo" && span.style.bold));
-        assert!(rows[1]
-            .spans
-            .iter()
-            .any(|span| span.text == "ld" && span.style.bold));
-        assert!(rows[2]
-            .spans
-            .iter()
-            .all(|span| span.link == Some(crate::Link::Url("https://www.site.com".into()))));
-        frame.alt_screen = true;
-        let mut raw = term_lines(&frame, &theme);
-        decorate_input(&frame, &mut raw, &theme, true, &|_| false);
-        assert_eq!(raw, term_lines(&frame, &theme));
+        frame.cursor = Some(herdstead_core::protocol::CursorPos { row: 1, col: 24 });
+        let theme = Theme::midnight();
+        let mut rows = term_lines(&frame, &theme);
+        decorate_output_links(&frame, &mut rows, &theme, &|_| false);
+
+        assert_eq!(
+            rows[0].links()[0].0,
+            crate::Link::Url("https://output.example".into())
+        );
+        assert!(rows[1].links().is_empty());
     }
 
     #[test]

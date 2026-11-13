@@ -88,10 +88,10 @@ Saved layouts restore folders and splits, not old process memory or output.
 ## Shell, theme and keys
 
 Existing daemons keep the environment they started with. Start a new session to
-enable new shell integration. An explicit `shell` in config takes precedence over
+enable new output helpers. An explicit `shell` in config takes precedence over
 the desktop's zsh preference. Original aliases and plugins are preserved;
-`hcat` and `hmd` explicitly select rich readers. Agent-owned input uses the
-agent's own completion.
+`hcat` and `hmd` explicitly select rich readers. Shell and agent input keep their
+own native completion.
 
 Use Settings for desktop themes and fonts, and the bundled Nerd Font for
 prompt glyphs. Old TUI prefix bindings and mouse/sidebar configuration do not

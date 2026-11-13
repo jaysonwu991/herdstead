@@ -1,6 +1,7 @@
 /* global Terminal */
 const $ = selector => document.querySelector(selector);
 const api = window.herdstead;
+const isMac = /Mac/.test(navigator.platform);
 const state = {
   snapshot: null, screens: {}, connected: false, theme: '', themes: [], cwd: '', home: '',
   fontSize: Number(localStorage.getItem('fontSize')) || 14,
@@ -11,6 +12,8 @@ const state = {
   dimensions: '', renderPending: false, directoryGeneration: 0, viewerCache: new Map(),
   zoom: clampZoom(Number(localStorage.getItem('zoom')) || 1),
   workspaceNodes: new Map(), tabNodes: new Map(), agentNodes: new Map(),
+  fileIndex: [], fileIndexRoot: '', fileIndexLoading: false, fileIndexDone: false,
+  fileIndexGeneration: 0, fileIndexScanned: 0, fileSearchResults: [], fileSearchIndex: 0,
 };
 let actionQueue = Promise.resolve();
 const action = value => {
@@ -65,13 +68,14 @@ function el(tag, className, text) {
   const node = document.createElement(tag); if (className) node.className = className;
   if (text !== undefined) node.textContent = text; return node;
 }
-// Wraps the filter's matched substring in <mark> so a hit is visible, not just present.
-function fileNameNode(name, filter) {
-  const node = el('span', 'file-name');
-  if (!filter) { node.textContent = name; return node; }
-  const index = name.toLowerCase().indexOf(filter);
-  if (index === -1) { node.textContent = name; return node; }
-  node.append(name.slice(0, index), el('mark', '', name.slice(index, index + filter.length)), name.slice(index + filter.length));
+// Marks a direct filename match; fuzzy path matches still stay readable without
+// scattering marks across every non-contiguous character.
+function highlightedName(name, query) {
+  const node = el('span', 'file-search-name');
+  const needle = query.trim().toLowerCase().replace(/\s+/g, '');
+  const index = name.toLowerCase().indexOf(needle);
+  if (!needle || index === -1) { node.textContent = name; return node; }
+  node.append(name.slice(0, index), el('mark', '', name.slice(index, index + needle.length)), name.slice(index + needle.length));
   return node;
 }
 function setText(node, text) { if (node.textContent !== text) node.textContent = text; }
@@ -275,6 +279,8 @@ function renderChrome() {
   });
   if (state.fileRoot !== ws.dir) {
     state.fileRoot = ws.dir; state.expanded.clear(); state.directoryCache.clear();
+    state.fileIndex = []; state.fileIndexRoot = ''; state.fileIndexLoading = false;
+    state.fileIndexDone = false; state.fileIndexGeneration++;
     safely(loadFiles)();
   }
 }
@@ -431,6 +437,147 @@ function renderDividers() {
     $('#panes').append(handle);
   }
 }
+
+const FILE_INDEX_LIMIT = 12000;
+const FILE_SEARCH_RESULT_LIMIT = 100;
+
+function relativeFile(path) {
+  const root = state.fileRoot.replace(/\/+$/, '');
+  return path === root ? path.split('/').pop() : path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+}
+
+function fuzzyFileScore(relative, query) {
+  const needle = query.trim().toLowerCase().replace(/\s+/g, '');
+  if (!needle) return null;
+  const target = relative.toLowerCase();
+  const nameStart = target.lastIndexOf('/') + 1;
+  const name = target.slice(nameStart);
+  let at = 0, previous = -2, score = 0;
+  for (const char of needle) {
+    const hit = target.indexOf(char, at);
+    if (hit === -1) return null;
+    const boundary = hit === 0 || '/._- '.includes(target[hit - 1]);
+    score += boundary ? 14 : 2;
+    if (hit === previous + 1) score += 9;
+    if (hit >= nameStart) score += 5;
+    score -= Math.min(hit - at, 12) * 0.15;
+    previous = hit;
+    at = hit + 1;
+  }
+  if (name === needle) score += 1000;
+  else if (name.startsWith(needle)) score += 600;
+  else if (name.includes(needle)) score += 350;
+  if (target.includes(needle)) score += 180;
+  return score - relative.length * 0.02;
+}
+
+async function indexProjectFiles() {
+  const root = state.fileRoot;
+  if (!root || !state.connected) return;
+  if (state.fileIndexRoot === root && (state.fileIndexLoading || state.fileIndexDone)) return;
+  const generation = ++state.fileIndexGeneration;
+  state.fileIndexRoot = root;
+  state.fileIndex = [];
+  state.fileIndexLoading = true;
+  state.fileIndexDone = false;
+  state.fileIndexScanned = 0;
+  renderFileSearch();
+  const pending = [root];
+  while (pending.length && state.fileIndexScanned < FILE_INDEX_LIMIT && generation === state.fileIndexGeneration) {
+    const batch = pending.splice(0, 12);
+    const listings = await Promise.all(batch.map(async path => {
+      try { return await api.request({ type: 'directory', path }); }
+      catch { return null; }
+    }));
+    if (generation !== state.fileIndexGeneration) return;
+    for (const listing of listings) {
+      if (!listing) continue;
+      for (const entry of listing.entries) {
+        if (state.fileIndexScanned >= FILE_INDEX_LIMIT) break;
+        state.fileIndexScanned++;
+        if (entry.directory) {
+          if (!entry.symlink) pending.push(entry.path);
+        } else {
+          state.fileIndex.push({ name: entry.name, path: entry.path, relative: relativeFile(entry.path) });
+        }
+      }
+      if (state.fileIndexScanned >= FILE_INDEX_LIMIT) break;
+    }
+    state.fileIndex.sort((a, b) => a.relative.localeCompare(b.relative));
+    renderFileSearch();
+  }
+  if (generation !== state.fileIndexGeneration) return;
+  state.fileIndexLoading = false;
+  state.fileIndexDone = true;
+  renderFileSearch();
+}
+
+function renderFileSearch() {
+  const input = $('#file-search-input'), list = $('#file-search-list'), query = input.value.trim();
+  const ranked = query
+    ? state.fileIndex
+      .map(file => ({ file, score: fuzzyFileScore(file.relative, query) }))
+      .filter(item => item.score !== null)
+      .sort((a, b) => b.score - a.score || a.file.relative.localeCompare(b.file.relative))
+    : [];
+  state.fileSearchResults = ranked.slice(0, FILE_SEARCH_RESULT_LIMIT);
+  state.fileSearchIndex = Math.min(state.fileSearchIndex, Math.max(0, state.fileSearchResults.length - 1));
+  list.replaceChildren();
+  input.removeAttribute('aria-activedescendant');
+  if (!query) {
+    list.append(el('p', 'notice', 'Type part of a file name or path.'));
+  } else if (!state.fileSearchResults.length) {
+    list.append(el('p', 'notice', state.fileIndexLoading ? 'Indexing project files…' : 'No matching files.'));
+  } else {
+    state.fileSearchResults.forEach(({ file }, index) => {
+      const node = button('', file.path, async () => {
+        $('#file-search').close();
+        await action({ type: 'open_viewer', path: file.path });
+        terminalFocus();
+      }, `file-search-result ${index === state.fileSearchIndex ? 'selected' : ''}`);
+      node.dataset.index = index;
+      node.id = `file-search-result-${index}`;
+      node.setAttribute('role', 'option');
+      node.setAttribute('aria-selected', String(index === state.fileSearchIndex));
+      if (index === state.fileSearchIndex) input.setAttribute('aria-activedescendant', node.id);
+      const icon = el('span', 'file-icon'); icon.append(uiIcon('file'));
+      const copy = el('span', 'file-search-copy');
+      copy.append(highlightedName(file.name, query));
+      const slash = file.relative.lastIndexOf('/');
+      copy.append(el('span', 'file-search-path', slash === -1 ? 'workspace root' : file.relative.slice(0, slash)));
+      node.append(icon, copy);
+      const dot = file.name.lastIndexOf('.');
+      if (dot > 0) node.append(el('span', 'file-search-extension', file.name.slice(dot + 1)));
+      list.append(node);
+    });
+    list.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+  }
+  const indexed = state.fileIndex.length;
+  $('#file-search-status').textContent = state.fileIndexLoading
+    ? `Indexing ${state.fileIndexScanned} entries…`
+    : query && ranked.length > state.fileSearchResults.length
+      ? `${state.fileSearchResults.length} of ${ranked.length} matches`
+      : query
+        ? `${ranked.length} ${ranked.length === 1 ? 'match' : 'matches'}`
+        : `${indexed} ${indexed === 1 ? 'file' : 'files'} indexed`;
+}
+
+function fileSearchShortcut() { return isMac ? '⌘ ⇧ O' : 'Ctrl ⇧ N'; }
+
+function openFileSearch() {
+  const dialog = $('#file-search');
+  if (!dialog.open) {
+    if ($('#palette').open) $('#palette').close();
+    if ($('#settings').open) $('#settings').close();
+    $('#file-search-input').value = '';
+    state.fileSearchIndex = 0;
+    renderFileSearch();
+    dialog.showModal();
+  }
+  $('#file-search-input').focus();
+  safely(indexProjectFiles)();
+}
+
 async function loadFiles() {
   if (!state.fileRoot || !state.files) return;
   const generation = ++state.directoryGeneration;
@@ -442,12 +589,11 @@ async function loadFiles() {
   if (listing.truncated) showError('The file list reached the configured tree entry limit.');
 }
 function renderFiles() {
-  const root = $('#file-tree'), filter = $('#file-filter').value.toLowerCase(); root.replaceChildren();
+  const root = $('#file-tree'); root.replaceChildren();
   let total = 0;
   function append(entries, depth) {
     for (const entry of entries) {
       if (++total > 4000 || depth > 12) return;
-      if (filter && !entry.name.toLowerCase().includes(filter) && !entry.directory) continue;
       const node = button('', entry.path, async () => {
         if (entry.directory) {
           if (state.expanded.has(entry.path)) state.expanded.delete(entry.path);
@@ -466,7 +612,7 @@ function renderFiles() {
       icon.append(uiIcon(entry.directory ? (state.expanded.has(entry.path) ? 'chevronDown' : 'chevronRight') : 'file'));
       if (entry.directory) icon.append(uiIcon('folder'));
       if (entry.directory) node.setAttribute('aria-expanded', state.expanded.has(entry.path));
-      node.append(icon, fileNameNode(entry.name, filter));
+      node.append(icon, el('span', 'file-name', entry.name));
       if (!entry.directory && entry.name.includes('.')) node.append(el('span', 'extension', entry.name.split('.').pop().toUpperCase()));
       root.append(node);
       if (entry.directory && state.expanded.has(entry.path)) append(state.directoryCache.get(entry.path) || [], depth + 1);
@@ -519,6 +665,7 @@ const commands = [
   ['Rename current tab', '', () => rename('tab')],
   ['Rename workspace', '', () => rename('workspace')],
   ['Find in visible terminal output', '⌘ F', openFind],
+  ['Search project files', fileSearchShortcut(), openFileSearch],
   ['Toggle file explorer', '⌘ B', toggleFiles],
   ['Toggle rich terminal output', '', toggleRich],
   ['Zoom in', '⌘ +', () => zoomText(1)],
@@ -600,7 +747,7 @@ on('#terminal-input', 'paste', async event => {
   event.preventDefault(); await action({ type: 'paste', text: event.clipboardData.getData('text/plain') });
 });
 document.addEventListener('keydown', safely(async event => {
-  const command = /Mac/.test(navigator.platform) ? event.metaKey : event.ctrlKey;
+  const command = isMac ? event.metaKey : event.ctrlKey;
   if (event.key === 'Escape' && !$('#palette').open && !$('#settings').open && !$('#find-bar').hidden) { closeFind(); return; }
   if (!command) return;
   const key = event.key.toLowerCase();
@@ -608,6 +755,8 @@ document.addEventListener('keydown', safely(async event => {
     p: event.shiftKey ? palette : null, t: () => action({ type: 'new_tab' }),
     d: () => action({ type: 'split', dir: event.shiftKey ? 'horizontal' : 'vertical' }),
     b: toggleFiles, f: openFind, ',': settings,
+    o: isMac && event.shiftKey ? openFileSearch : null,
+    n: !isMac && event.shiftKey ? openFileSearch : null,
     enter: event.shiftKey ? () => action({ type: 'toggle_zoom' }) : null,
     w: event.shiftKey ? () => action({ type: 'close_pane' }) : null,
     '=': () => zoomText(1), '+': () => zoomText(1), '-': () => zoomText(-1), '0': () => zoomText(0),
@@ -618,11 +767,30 @@ document.addEventListener('keydown', safely(async event => {
 // Openers re-run on the click so the input they focus keeps the caret.
 onPress('#palette-button', palette, { repeat: true }); onPress('#status-commands', palette, { repeat: true });
 onPress('#new-tab', () => action({ type: 'new_tab' })); onPress('#add-workspace', addWorkspace);
-onPress('#files-button', toggleFiles); onPress('#refresh-files', () => { state.directoryCache.clear(); state.expanded.clear(); return loadFiles(); });
-on('#file-filter', 'input', renderFiles); onPress('#rich-output-button', toggleRich);
+onPress('#files-button', toggleFiles);
+onPress('#refresh-files', () => {
+  state.directoryCache.clear(); state.expanded.clear();
+  state.fileIndex = []; state.fileIndexRoot = ''; state.fileIndexDone = false; state.fileIndexGeneration++;
+  return loadFiles();
+});
+on('#file-search-open', 'click', openFileSearch);
+on('#file-search-input', 'input', () => { state.fileSearchIndex = 0; renderFileSearch(); });
+on('#file-search-input', 'keydown', async event => {
+  if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
+    event.preventDefault();
+    const length = state.fileSearchResults.length;
+    if (length) state.fileSearchIndex = (state.fileSearchIndex + (event.key === 'ArrowDown' ? 1 : -1) + length) % length;
+    renderFileSearch();
+  } else if (event.key === 'Enter' && state.fileSearchResults[state.fileSearchIndex]) {
+    event.preventDefault();
+    const file = state.fileSearchResults[state.fileSearchIndex].file;
+    $('#file-search').close(); await action({ type: 'open_viewer', path: file.path }); terminalFocus();
+  }
+});
+onPress('#rich-output-button', toggleRich);
 onPress('#find-button', openFind, { repeat: true }); on('#find-input', 'input', find); onPress('#find-close', closeFind);
 onPress('#settings-button', settings, { repeat: true }); onPress('#close-settings', () => $('#settings').close());
-for (const dialog of ['#palette', '#settings']) on(dialog, 'close', restoreTerminalFocus);
+for (const dialog of ['#file-search', '#palette', '#settings']) on(dialog, 'close', restoreTerminalFocus);
 on('#theme-select', 'change', event => setTheme(event.target.value));
 on('#font-family', 'change', event => { state.fontFamily = event.target.value; localStorage.setItem('fontFamily', state.fontFamily); fontSize(); });
 onPress('#font-smaller', () => fontSize(-1)); onPress('#font-larger', () => fontSize(1));
@@ -646,6 +814,7 @@ api.onEvent(receive); api.onCommand(safely(command => {
   else if (command === 'check-for-updates') { settings(); if (!$('#check-update').disabled) return checkUpdate(); }
 }));
 $('#files').hidden = !state.files; $('#files-button').setAttribute('aria-pressed', state.files);
+$('#file-search-shortcut').textContent = fileSearchShortcut();
 $('#rich-output-button').setAttribute('aria-pressed', state.rich);
 $('#rich-output-button').textContent = state.rich ? 'Enabled' : 'Disabled';
 safely(async () => {

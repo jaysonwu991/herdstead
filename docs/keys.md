@@ -13,6 +13,7 @@ The shortcut modifier is Cmd on macOS and Ctrl on Linux.
 | Cmd/Ctrl+1–9 | select tab |
 | Cmd/Ctrl+B | toggle Files |
 | Cmd/Ctrl+F | find matching rows in visible output |
+| Cmd+Shift+O / Ctrl+Shift+N | search project files |
 | Cmd/Ctrl+, | settings |
 | Cmd/Ctrl+plus/minus | zoom the window |
 | Cmd/Ctrl+0 | actual size |

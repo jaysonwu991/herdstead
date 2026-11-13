@@ -9,7 +9,7 @@ Start with [getting started](getting-started.md) to download and install it.
 | [Desktop](desktop.md) | native builds, rich terminal, zsh, controls and verification |
 | [Sessions](sessions.md) | persistent processes, saved layouts and session maintenance |
 | [Panes and terminals](terminal.md) | splits, scrollback, links and terminal behaviour |
-| [Shell input](composer.md) | agent input, Markdown and shell `@path` completion |
+| [Shell input](composer.md) | native shell and agent input |
 | [Viewers](viewers.md) | Markdown, code and folder trees |
 | [Themes](themes.md) | palettes, custom themes and colour slots |
 | [Configuration](configuration.md) | runtime settings and environment |

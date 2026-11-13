@@ -214,8 +214,10 @@ Running processes and their output are not restored.
 ## The client
 
 `crates/desktop/ui` renders snapshots, translates keys and paste into semantic actions,
-and measures the terminal font to send cell geometry to the daemon. Viewer
-scroll, appearance, rich-output preference and file panel state stay local.
+and measures the terminal font to send cell geometry to the daemon. It indexes
+bounded directory replies for project file search; opening a result sends the
+existing `open_viewer` action. Viewer scroll, appearance, rich-output preference
+and file panel state stay local.
 `crates/app/src/viewer.rs` loads viewer files and uses the shared renderers.
 The bundled runtime also provides ANSI shell commands from those same renderers.
 
@@ -226,7 +228,7 @@ The bundled runtime also provides ANSI shell commands from those same renderers.
 | unit tests in `core` | geometry, splits, closing, focus, resize, themes, config layering, binding syntax, mention parsing, link scanning |
 | unit tests in `render` | exact columns, links surviving wrapping, table alignment, image placeholders, code gutters, tree scanning, ANSI output |
 | `crates/app/tests/runtime.rs` | a real daemon: shell output, typed keys, splits, scrollback, viewer panes, kill, restart-restore, error frames |
-| `crates/desktop/tests` | real daemon bridge, zsh integration, terminal rendering and browser E2E |
+| `crates/desktop/tests` | real daemon bridge, zsh integration, terminal rendering, file search and browser E2E |
 | `scripts/test_desktop_release.py` | installer completeness, signed manifest assembly, checksums and version stamping |
 
 The end-to-end tests spawn the built binary and talk to it the way a user does,
@@ -288,32 +290,30 @@ still requires the explicit install button.
 
 ### Shell integration and output interpretation
 
-Desktop-started daemons receive `HERDSTEAD_SHELL_INTEGRATION=1`. For zsh panes,
+Desktop-started daemons receive `HERDSTEAD_SHELL_HELPERS=1`. For zsh panes,
 `server::pane` prepares startup wrappers under the private runtime directory,
 sources the original startup files once and loads `shell/herdstead.zsh` after the
 user's zshrc. It restores the user's ZDOTDIR before their framework runs. No user
-file is edited. ZLE widgets own reference highlighting, completion and acceptance;
-`herdstead shell-expand` parses standalone references into literal quoted path
-arguments, preserving quoted prose and shell syntax. Existing prompt hooks and
-non-reference completion stay active. The daemon still owns only the PTY and
-runtime facts; no command-line buffer or presentation field enters the protocol.
+file is edited. The addon only supplies output helpers and OSC 7 working-folder
+updates; line editing, completion and `@path` text remain native to zsh. The
+daemon still owns only the PTY and runtime facts; no command-line buffer or
+presentation field enters the protocol.
 
 `render::term::rich_lines` is pure and used by the desktop bridge. It interprets
 plain Markdown output a row at a time and highlights fenced code with the shared
 syntax engine. It preserves row count and leaves the cursor row, soft-wrapped
 content, already styled output and alternate-screen applications out of block
-interpretation. Editable input is styled separately by `decorate_input`.
+interpretation. The editable logical line is never parsed as Markdown.
 The desktop can select raw output instead. Complete Markdown documents use the shared block renderer
 through `md`/`render`, so tables and paragraph reflow are not constrained to a
 terminal screen's existing rows.
 
-`render::input` styles inline Markdown without removing source delimiters.
-`term::decorate_input` reconstructs the editable logical line across soft wraps,
-then restores the original terminal columns after styling and link detection.
-Links are scanned across style runs so a URL interrupted by ZLE or Markdown
-colour changes still carries one complete target. The desktop serialises badge
-offsets into existing blank cells or the gutter; local SVG logos are presentation
-only and add no text or PTY columns. Alternate-screen applications are excluded.
+`term::decorate_output_links` skips the editable logical line, including its soft
+wraps, so input keeps the terminal's characters and styles. Output links are
+scanned across style runs so a URL interrupted by ANSI colour changes still
+carries one complete target. The desktop serialises badge offsets into existing
+blank cells or the gutter; local SVG logos are presentation only and add no text
+or PTY columns.
 
 ## Desktop distribution and updates
 
@@ -327,8 +327,11 @@ with darwin/linux architecture keys and publishes `SHA256SUMS`.
 
 The native host registers Tauri's updater plugin. `check_update` caches the
 candidate update; `install_update` consumes it, downloads and verifies its
-signature, installs it, stops the bridge and restarts the app. Daemons remain
-running. The page only exposes explicit check/install buttons and status text.
+signature, installs it, stops the bridge and restarts the app. On macOS, a
+detached helper waits for the old process to exit before asking LaunchServices
+to open the updated bundle without forcing a second instance; this keeps the
+replaced bundle to one Dock icon. Daemons remain running. The page only exposes
+explicit check/install buttons and status text.
 The public updater key is committed in Tauri config; its private half is a
 GitHub Actions secret. No protocol fields are added for updater presentation.
 Apple code signing/notarisation is separate from updater signatures.

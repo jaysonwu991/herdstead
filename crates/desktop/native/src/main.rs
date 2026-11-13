@@ -15,6 +15,9 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 use serde_json::{json, Value};
 
 const MAX_FRAME: usize = 32 * 1024 * 1024;
+#[cfg(target_os = "macos")]
+const MACOS_RELAUNCH_SCRIPT: &str =
+    r#"while /bin/kill -0 "$1" 2>/dev/null; do sleep 0.1; done; exec /usr/bin/open "$2""#;
 type Reply = Result<Value, String>;
 
 #[derive(Default)]
@@ -56,7 +59,7 @@ impl Host {
         let mut inner = self.inner.lock().unwrap();
         inner.latest.clear();
         let mut command = Command::new(&self.binary);
-        command.env("HERDSTEAD_SHELL_INTEGRATION", "1");
+        command.env("HERDSTEAD_SHELL_HELPERS", "1");
         // A GUI launch may have a minimal PATH. Rich terminal commands must
         // still find the same bundled runtime as the desktop bridge.
         if let Some(parent) = self.binary.parent() {
@@ -290,7 +293,61 @@ async fn install_update(
         .await
         .map_err(|err| err.to_string())?;
     app.state::<Host>().stop();
-    app.restart();
+    #[cfg(target_os = "macos")]
+    {
+        relaunch_after_update().map_err(|err| {
+            format!("The update was installed but Herdstead could not restart: {err}")
+        })?;
+        app.exit(0);
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        app.restart()
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn relaunch_after_update() -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    use std::process::Stdio;
+
+    let binary = std::env::current_exe().map_err(|err| err.to_string())?;
+    let bundle =
+        macos_bundle_path(&binary).ok_or("Cannot locate the updated application bundle")?;
+    macos_relaunch_command(std::process::id(), bundle)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .process_group(0)
+        .spawn()
+        .map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn macos_bundle_path(binary: &std::path::Path) -> Option<&std::path::Path> {
+    let macos = binary.parent()?;
+    if macos.file_name()? != "MacOS" {
+        return None;
+    }
+    let contents = macos.parent()?;
+    if contents.file_name()? != "Contents" {
+        return None;
+    }
+    contents.parent()
+}
+
+#[cfg(target_os = "macos")]
+fn macos_relaunch_command(pid: u32, bundle: &std::path::Path) -> Command {
+    let mut command = Command::new("/bin/sh");
+    command
+        .arg("-c")
+        .arg(MACOS_RELAUNCH_SCRIPT)
+        .arg("herdstead-updater")
+        .arg(pid.to_string())
+        .arg(bundle);
+    command
 }
 
 #[tauri::command]
@@ -493,4 +550,43 @@ fn main() {
                 app.state::<Host>().stop();
             }
         });
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    #[test]
+    fn macos_relaunch_waits_before_opening_the_bundle_without_a_new_instance() {
+        let bundle = std::path::Path::new("/Applications/Herdstead.app");
+        let command = macos_relaunch_command(42, bundle);
+        let args: Vec<_> = command.get_args().collect();
+
+        assert_eq!(
+            args,
+            [
+                OsStr::new("-c"),
+                OsStr::new(MACOS_RELAUNCH_SCRIPT),
+                OsStr::new("herdstead-updater"),
+                OsStr::new("42"),
+                bundle.as_os_str(),
+            ]
+        );
+        assert!(!args.iter().any(|arg| *arg == OsStr::new("-n")));
+    }
+
+    #[test]
+    fn macos_bundle_path_only_accepts_app_bundle_executables() {
+        assert_eq!(
+            macos_bundle_path(std::path::Path::new(
+                "/Applications/Herdstead.app/Contents/MacOS/Herdstead"
+            )),
+            Some(std::path::Path::new("/Applications/Herdstead.app"))
+        );
+        assert_eq!(
+            macos_bundle_path(std::path::Path::new("/tmp/Herdstead")),
+            None
+        );
+    }
 }
