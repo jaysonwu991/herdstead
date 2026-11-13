@@ -34,7 +34,7 @@ sudo apt install ./Herdstead-linux-x64.deb
 ```
 
 The package manager resolves WebKitGTK 4.1 and other desktop dependencies.
-Install zsh for rich shell integration (`sudo apt install zsh`). Prebuilt Linux
+Install zsh to use the default interactive shell (`sudo apt install zsh`). Prebuilt Linux
 packages require glibc; Alpine/musl and Windows are not supported.
 
 For download verification, fetch `SHA256SUMS` from the same release and compare
@@ -55,10 +55,10 @@ The sidebar shows detected agents and their status.
 | Cmd/Ctrl+Shift+P | command palette |
 | Cmd/Ctrl+, | settings and updates |
 | click a file in Files | open a rich viewer |
+| Cmd+Shift+O / Ctrl+Shift+N | search files by name or path |
 
-Your zsh startup files load normally. Type `cat @REA` and press Tab to complete
-a file reference; Enter expands the reference to a safely quoted path and runs
-the command. `cat README.md` renders Markdown, `cat src/main.rs` highlights code,
+Your zsh startup files load normally, and Tab and line editing remain native to
+your shell. `cat README.md` renders Markdown, `cat src/main.rs` highlights code,
 and `tree .` draws a folder tree. Existing aliases are preserved; `hcat` and
 `hmd` explicitly select the rich readers.
 

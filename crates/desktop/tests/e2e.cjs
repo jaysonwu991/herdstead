@@ -19,7 +19,7 @@ const assert = require('node:assert/strict');
   let fullscreenCalls = 0;
   const zoomCalls = [];
   page.on('pageerror', error => failures.push(error.message));
-  const run = runtime(event => { page.evaluate(event => window.__desktopEvent?.(event), event).catch(() => {}); }, { shell: '/bin/zsh', integration: true, home: true });
+  const run = runtime(event => { page.evaluate(event => window.__desktopEvent?.(event), event).catch(() => {}); }, { shell: '/bin/zsh', helpers: true, home: true });
   try {
     await run.wait(() => true);
     await run.request({ type: 'action', action: { type: 'rename_workspace', name: 'project' } });
@@ -73,7 +73,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#workspaces .name').first().textContent(), '~');
     assert.equal(await page.locator('#workspaces .initial').first().textContent(), '~');
     await page.waitForFunction(() => document.querySelector('#file-breadcrumb').textContent === '~');
-    for (const selector of ['#find-button', '#settings-button', '.file-filter']) {
+    for (const selector of ['#find-button', '#settings-button', '#file-search-open']) {
       const size = await page.locator(`${selector} .ui-icon`).first().boundingBox();
       assert.equal(size.width, 16, `${selector} icon width`);
       assert.equal(size.height, 16, `${selector} icon height`);
@@ -168,23 +168,37 @@ const assert = require('node:assert/strict');
     const literal = '**bold** *italic* `code` [GitHub](https://github.com) https://example.com';
     const draft = `printf '%s' '${literal}' > input-proof.txt`;
     await page.keyboard.type(draft);
-    await page.waitForFunction(() => [...document.querySelectorAll('.pane.focused .terminal-row span')].some(span => span.textContent === 'bold' && span.style.fontWeight === '700'));
-    await page.waitForFunction(() => [...document.querySelectorAll('.pane.focused .terminal-row span')].some(span => span.textContent === 'italic' && span.style.fontStyle === 'italic'));
+    await page.waitForFunction(draft => document.querySelector('.pane.focused .rows')?.textContent.includes(draft), draft);
+    const inputPresentation = await page.evaluate(() => {
+      const row = document.querySelector('.pane.focused .cursor')?.parentElement;
+      const spans = row ? [...row.querySelectorAll('span')] : [];
+      return {
+        text: row?.textContent,
+        links: row?.querySelectorAll('.term-link').length,
+        logos: row?.querySelectorAll('.link-logo').length,
+        bold: spans.some(span => span.style.fontWeight === '700'),
+        italic: spans.some(span => span.style.fontStyle === 'italic'),
+      };
+    });
+    assert.equal(inputPresentation.text, `HS> ${draft} `);
+    assert.equal(inputPresentation.links, 0, 'The live input is not link-decorated');
+    assert.equal(inputPresentation.logos, 0, 'The live input has no link logos');
+    assert.equal(inputPresentation.bold, false, 'Markdown markers in the live input do not style the text');
+    assert.equal(inputPresentation.italic, false, 'Italic markers in the live input do not style the text');
     const githubLogo = page.locator('.pane.focused .link-logo[data-kind="github"]').first();
     await githubLogo.waitFor();
     assert.equal(fs.existsSync(path.join(run.cwd, 'input-proof.txt')), false);
-    await page.waitForFunction(draft => document.querySelector('.pane.focused .rows')?.textContent.includes(draft), draft);
     const originalInput = await page.locator('.pane.focused .rows').textContent();
     assert.ok(originalInput.includes('**bold**'));
-    assert.equal(await page.locator('.pane.focused .link-logo').count(), 2, 'A link with one free cell keeps its colour and underline, not a squeezed logo');
+    assert.equal(await page.locator('.pane.focused .link-logo').count(), 2, 'Output links keep their logos after native input is typed');
     await githubLogo.click();
     assert.deepEqual(openedLinks, ['https://github.com']);
-    assert.equal(fs.existsSync(path.join(run.cwd, 'input-proof.txt')), false, 'Opening a link must not submit the shell input');
-    assert.equal(await page.locator('.pane.focused .rows').textContent(), originalInput, 'Link logos do not add source characters');
+    assert.equal(fs.existsSync(path.join(run.cwd, 'input-proof.txt')), false, 'Opening an output link must not submit the shell input');
+    assert.equal(await page.locator('.pane.focused .rows').textContent(), originalInput, 'Output links do not change native input characters');
     await page.locator('#terminal-input').focus(); await page.keyboard.press('Enter');
-    await run.wait(() => fs.existsSync(path.join(run.cwd, 'input-proof.txt')), 'unchanged Markdown command execution');
+    await run.wait(() => fs.existsSync(path.join(run.cwd, 'input-proof.txt')), 'native input execution');
     assert.equal(fs.readFileSync(path.join(run.cwd, 'input-proof.txt'), 'utf8'), literal);
-    await run.wait(event => { const g = event.snapshot.panes.find(p => p.id === event.snapshot.focused)?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable prompt after Markdown input');
+    await run.wait(event => { const g = event.snapshot.panes.find(p => p.id === event.snapshot.focused)?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable prompt after native input');
     await page.keyboard.type('printf "UI-TERMINAL-OK\\n"'); await page.keyboard.press('Enter');
     await page.locator('.terminal-row').filter({ hasText: 'UI-TERMINAL-OK' }).first().waitFor();
     assert.equal(await page.evaluate(() => {
@@ -274,9 +288,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => document.querySelectorAll('.tab')[1]?.classList.contains('active'));
     await run.wait(event => { const p = event.snapshot.panes.find(p => p.id === event.snapshot.focused); const g = p?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'editable zsh prompt');
     await page.waitForFunction(() => document.activeElement?.id === 'terminal-input');
-    await page.keyboard.type('cat @src/ma'); await page.keyboard.press('Tab');
-    await page.locator('.terminal-row').filter({ hasText: '@src/main.rs' }).first().waitFor();
-    await page.keyboard.press('Enter');
+    await page.keyboard.type('cat src/main.rs'); await page.keyboard.press('Enter');
     await page.locator('.terminal-row').filter({ hasText: 'fn main()' }).first().waitFor();
     await run.wait(event => { const g = event.snapshot.panes.find(p => p.id === event.snapshot.focused)?.grid; return g?.cursor && g.lines[g.cursor.row]?.runs.map(r => r.text).join('').trim() === 'HS>'; }, 'prompt after highlighted cat');
     await page.keyboard.type('printf "# Output heading\\n\\n**bold output**\\n"'); await page.keyboard.press('Enter');
@@ -289,8 +301,33 @@ const assert = require('node:assert/strict');
     await page.locator('#rich-output-button').click();
     await page.locator('#close-settings').click();
     await page.waitForFunction(() => [...document.querySelectorAll('.terminal-row span')].some(span => span.textContent === 'bold output' && span.style.fontWeight === '700'));
-    await page.locator('#file-tree .file-row').filter({ hasText: 'README.md' }).click();
+    const fileSearchShortcut = process.platform === 'darwin' ? 'Meta+Shift+O' : 'Control+Shift+N';
+    await page.locator('#file-search-open').click();
+    await page.locator('#file-search[open]').waitFor();
+    assert.equal(await page.locator('#file-search-input').evaluate(node => document.activeElement === node), true, 'The file-search button focuses the query');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('#file-search').open);
+    await page.keyboard.press(fileSearchShortcut);
+    await page.locator('#file-search[open]').waitFor();
+    assert.equal(await page.locator('#file-search-input').evaluate(node => document.activeElement === node), true, 'The IDEA-style file-search shortcut focuses the query');
+    await page.locator('#file-search-input').fill('m');
+    await page.waitForFunction(() => document.querySelectorAll('#file-search .file-search-result').length >= 2);
+    const initialSearchResult = await page.locator('#file-search .file-search-result[aria-selected="true"]').getAttribute('id');
+    await page.keyboard.press('ArrowDown');
+    assert.notEqual(await page.locator('#file-search .file-search-result[aria-selected="true"]').getAttribute('id'), initialSearchResult, 'Arrow keys move the file-search selection');
+    await page.locator('#file-search-input').fill('readme');
+    const readmeResult = page.locator('#file-search .file-search-result').filter({ hasText: 'README.md' }).first();
+    await readmeResult.waitFor();
+    assert.match(await readmeResult.getAttribute('title'), /README\.md$/, 'Search results point at the indexed project file');
+    await page.screenshot({ path: path.resolve(__dirname, '../test-results/file-search.png') });
+    await readmeResult.click();
     await page.locator('.viewer-screen').filter({ hasText: 'Desktop workspace' }).waitFor();
+    await page.locator('#file-search-open').click();
+    await page.locator('#file-search-input').fill('main rs');
+    const mainResult = page.locator('#file-search .file-search-result[title$="/src/main.rs"]').first();
+    await mainResult.waitFor();
+    await page.keyboard.press('Enter');
+    await page.locator('.viewer-screen').filter({ hasText: 'fn main()' }).waitFor();
     await page.locator('#settings-button').click(); await page.locator('#theme-select').selectOption('nord');
     await page.waitForFunction(() => localStorage.getItem('theme') === 'nord');
     await page.locator('#check-update').click();
@@ -353,6 +390,6 @@ const assert = require('node:assert/strict');
     fs.mkdirSync(path.resolve(__dirname, '../test-results'), { recursive: true });
     await page.screenshot({ path: path.resolve(__dirname, '../test-results/desktop.png') });
     assert.deepEqual(failures, []);
-    console.log('Desktop E2E passed: real PTY input, splits, tabs, one-press spaces and focus, shell input Markdown and link logos, shell completion, files, inline Markdown, @path, themes, palette, zoom, full screen and resize.');
+    console.log('Desktop E2E passed: real PTY input, native shell input, formatted output, IDEA-style file search, splits, tabs, one-press spaces and focus, themes, palette, zoom, full screen and resize.');
   } finally { await browser.close(); await run.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

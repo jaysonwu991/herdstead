@@ -50,6 +50,7 @@ test('desktop bridge drives a real PTY, split, viewer and persistent session', {
     const listing = await request({ type: 'directory', path: run.cwd });
     assert.equal(listing.entries[0].name, 'src');
     assert.ok(listing.entries.some(entry => entry.name === 'README.md'));
+    assert.equal(listing.entries.every(entry => entry.symlink === false), true, 'Directory replies mark ordinary entries for safe indexing');
     await request({ type: 'action', action: { type: 'split', dir: 'vertical' } });
     await run.wait(event => event.snapshot.panes.length === 2, 'split panes');
     await request({ type: 'action', action: { type: 'open_viewer', path: `${run.cwd}/README.md` } });

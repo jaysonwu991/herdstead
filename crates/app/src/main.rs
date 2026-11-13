@@ -44,9 +44,6 @@ struct Args {
 enum Command {
     /// Print zsh integration for `eval "$(herdstead shell-init)"`.
     ShellInit,
-    /// Expand literal @path references for the zsh line editor.
-    #[command(hide = true)]
-    ShellExpand,
     /// Render Markdown from a file or piped command output.
     Render {
         #[arg(default_value = "-")]
@@ -127,13 +124,6 @@ fn main() -> Result<()> {
     match args.command {
         Some(Command::ShellInit) => {
             print!("{}", shell::ZSH);
-            Ok(())
-        }
-        Some(Command::ShellExpand) => {
-            use std::io::Read;
-            let mut input = String::new();
-            std::io::stdin().read_to_string(&mut input)?;
-            print!("{}", shell::expand(&input, &cwd)?);
             Ok(())
         }
         Some(Command::Render { path }) => cli::markdown(&path, &theme, path.as_os_str() == "-"),

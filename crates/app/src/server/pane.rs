@@ -50,7 +50,7 @@ impl PanePty {
         command.env("HERDSTEAD", "1");
         command.env("HERDSTEAD_PANE", pane.to_string());
         command.env("HERDSTEAD_SESSION_PID", std::process::id().to_string());
-        if std::env::var("HERDSTEAD_SHELL_INTEGRATION").as_deref() == Ok("1")
+        if std::env::var("HERDSTEAD_SHELL_HELPERS").as_deref() == Ok("1")
             && Path::new(shell)
                 .file_name()
                 .is_some_and(|name| name == "zsh")

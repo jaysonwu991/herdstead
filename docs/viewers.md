@@ -1,9 +1,10 @@
 # Viewers
 
-Click a file in Files, or Cmd/Ctrl-click an existing path in terminal output, to
-open a viewer pane. Markdown uses the shared block renderer; source files use
-syntax highlighting with line numbers. Folder viewers use the shared tree
-renderer. The command palette can open the workspace folder tree.
+Click a file in Files, search for one from **Search files…**, or Cmd/Ctrl-click
+an existing path in terminal output to open a viewer pane. Markdown uses the
+shared block renderer; source files use syntax highlighting with line numbers.
+Folder viewers use the shared tree renderer. The command palette can open the
+workspace folder tree.
 
 Viewers scroll independently of shell scrollback. They read UTF-8 files on the
 client, refuse files over 4 MiB and show read errors in the pane. Source files

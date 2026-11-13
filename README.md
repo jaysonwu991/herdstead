@@ -6,7 +6,7 @@
 
 Herdstead is a Tauri desktop app for macOS and Linux. Keep agents running in
 persistent terminal panes, tabs and workspaces, with rich Markdown, clickable
-links, shell `@path` completion, highlighted files and folder trees.
+links, highlighted files and folder trees.
 
 [![CI](https://github.com/jaysonwu991/herdstead/actions/workflows/ci.yml/badge.svg)](https://github.com/jaysonwu991/herdstead/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-666666.svg)](LICENSE)
@@ -41,13 +41,16 @@ Start your coding agent in a terminal. Split panes with Cmd/Ctrl+D, open a tab
 with Cmd/Ctrl+T, and find all commands with Cmd/Ctrl+Shift+P. Closing the window
 leaves the session's shells running; reopening reconnects to the session.
 
-The terminal loads your zsh startup files, Starship and Oh My Zsh configuration.
-Type `@` for path completion. Use `cat README.md` for rendered Markdown,
-`cat src/main.rs` for highlighted code, and `tree .` for a directory tree.
-Existing aliases and piped `cat` commands retain their normal behaviour.
+The terminal loads your zsh startup files and configuration. Input and
+completion stay native to that shell. Use `cat README.md` for rendered
+Markdown, `cat src/main.rs` for highlighted code, and `tree .` for a directory
+tree. Existing aliases and piped `cat` commands retain their normal behaviour.
 
-Choose a theme and terminal font in **Settings**. The bundled JetBrains Mono Nerd Font includes prompt symbols. Click files in the explorer to open a viewer; use
-Cmd/Ctrl-click for links in terminal text. **Rich terminal output** in Settings toggles Markdown
+Choose a theme and terminal font in **Settings**. The theme colours Herdstead
+and rendered terminal output; it does not configure your shell prompt. Click
+files in the explorer to open a viewer; use Cmd/Ctrl-click for links in terminal
+text. Search files by name or path with Cmd+Shift+O on macOS or Ctrl+Shift+N on
+Linux. **Rich terminal output** in Settings toggles Markdown
 interpretation without changing the terminal's bytes or row coordinates.
 
 [Documentation](docs/README.md) · [Desktop controls](docs/desktop.md) ·
@@ -57,7 +60,7 @@ interpretation without changing the terminal's bytes or row coordinates.
 
 Install a current stable Rust toolchain, Node.js 26, pnpm 12 and the
 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your platform.
-Linux also needs zsh for the rich shell integration.
+Linux also needs zsh to use the default interactive shell.
 
 ```sh
 git clone https://github.com/jaysonwu991/herdstead.git

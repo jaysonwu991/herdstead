@@ -9,7 +9,6 @@ pub mod ansi;
 pub mod code;
 pub mod composer;
 pub mod inline;
-pub mod input;
 pub mod link;
 pub mod markdown;
 pub mod style;
